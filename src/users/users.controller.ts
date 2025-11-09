@@ -22,7 +22,7 @@ import { HasRoles } from 'src/auth/jwt/has-roles';
 import { JwtRole } from 'src/auth/jwt/jwt-role';
 import { JwtRolesGuard } from 'src/auth/jwt/jwt-roles.guard';
 
-@Controller('users') // con globalPrefix('api') => /api/users
+@Controller('users')
 export class UsersController {
   constructor(private readonly userService: UsersService) {}
 

@@ -10,6 +10,10 @@ import {
 } from 'typeorm';
 import { Rol } from 'src/roles/rol.entity';
 import { Pet } from 'src/pets/pet.entity';
+import { AdoptionRequest } from 'src/adoption/adoption-request.entity';
+import { Comment } from 'src/comments/comment.entity';
+import { Notification } from 'src/notifications/notification.entity';
+import { Report } from 'src/reports/report.entity';
 
 @Entity({ name: 'users' })
 export class User {
@@ -36,6 +40,22 @@ export class User {
 
   @Column({ nullable: true })
   notification_token: string;
+
+  // Nuevos campos para el sistema completo
+  @Column({ nullable: true })
+  address: string;
+
+  @Column({ type: 'text', nullable: true })
+  bio: string; // Biografía del usuario
+
+  @Column({ type: 'boolean', default: true })
+  isActive: boolean; // Si el usuario está activo
+
+  @Column({ type: 'boolean', default: false })
+  isVerified: boolean; // Si el usuario está verificado
+
+  @Column({ type: 'timestamp', nullable: true })
+  lastLoginAt: Date; // Último login
 
   @Column({
     type: 'datetime',
@@ -66,6 +86,25 @@ export class User {
   // Relación con mascotas
   @OneToMany(() => Pet, (pet) => pet.user)
   pets: Pet[];
+
+  // Nuevas relaciones
+  @OneToMany(() => AdoptionRequest, request => request.adopter)
+  adoptionRequests: AdoptionRequest[];
+
+  @OneToMany(() => Comment, comment => comment.user)
+  comments: Comment[];
+
+  @OneToMany(() => Notification, notification => notification.user)
+  notifications: Notification[];
+
+  @OneToMany(() => Notification, notification => notification.fromUser)
+  sentNotifications: Notification[];
+
+  @OneToMany(() => Report, report => report.reporter)
+  reports: Report[];
+
+  @OneToMany(() => Report, report => report.reviewedBy)
+  reviewedReports: Report[];
 
   // 🔒 Encriptar contraseña automáticamente antes de guardar
   @BeforeInsert()

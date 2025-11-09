@@ -30,7 +30,11 @@ async function bootstrap() {
   }));
 
   // Escuchar en todas las interfaces para permitir conexiones desde emuladores
-  await app.listen(process.env.PORT || 3000, '0.0.0.0');
+  const port = process.env.PORT || 3000;
+  await app.listen(port, '0.0.0.0');
   console.log('🚀 Backend corriendo en http://0.0.0.0:3000');
+  console.log('🌐 Accesible desde emulador en http://10.0.2.2:3000');
+  console.log('🌐 Accesible desde red local en http://192.168.18.97:3000');
+
 }
 bootstrap();

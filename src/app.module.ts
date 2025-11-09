@@ -13,12 +13,22 @@ import { RolesModule } from './roles/roles.module';
 import { PetsModule } from './pets/pets.module';
 import { CategoriesModule } from './categories/categories.module';
 import { UploadModule } from './upload/upload.module';
+import { AdoptionModule } from './adoption/adoption.module';
+import { CommentsModule } from './comments/comments.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { ReportsModule } from './reports/reports.module';
+import { SearchModule } from './search/search.module';
 
 // === Entidades PawFinder ===
 import { User } from './users/user.entity';
 import { Rol } from './roles/rol.entity';
 import { Pet } from './pets/pet.entity';
 import { Category } from './categories/category.entity';
+import { PetImage } from './pets/pet-image.entity';
+import { AdoptionRequest } from './adoption/adoption-request.entity';
+import { Comment } from './comments/comment.entity';
+import { Notification } from './notifications/notification.entity';
+import { Report } from './reports/report.entity';
 
 @Module({
   imports: [
@@ -41,6 +51,11 @@ import { Category } from './categories/category.entity';
         Rol,
         Pet,
         Category,
+        PetImage,
+        AdoptionRequest,
+        Comment,
+        Notification,
+        Report,
       ],
       synchronize: true, // ⚠️ En desarrollo: true. En producción: false
     }),
@@ -52,6 +67,11 @@ import { Category } from './categories/category.entity';
     PetsModule,
     CategoriesModule,
     UploadModule,
+    AdoptionModule,
+    CommentsModule,
+    NotificationsModule,
+    ReportsModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [AppService],

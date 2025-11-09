@@ -11,6 +11,16 @@ export class AppController {
     return this.appService.getHello();
   }
 
+  // Health check endpoint para testing de conectividad
+  @Get('health')
+  getHealth() {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      message: 'Backend is running'
+    };
+  }
+
   @Get('storage-status')
   getStorageStatus() {
     try {
