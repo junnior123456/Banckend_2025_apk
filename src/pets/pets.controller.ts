@@ -73,6 +73,39 @@ export class PetsController {
     return this.petsService.findInRisk(catId);
   }
 
+  // 📋 GET /api/pets/my-pets - Obtener mascotas del usuario
+  @Get('my-pets')
+  @UseGuards(JwtAuthGuard)
+  async getMyPets(
+    @Request() req: any,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '100',
+    @Query('status') status?: string,
+  ) {
+    try {
+      const userId = req.user.userId;
+      const result = await this.petsService.getPetsByUser(
+        userId,
+        parseInt(page),
+        parseInt(limit),
+        status,
+      );
+      
+      return {
+        ok: true,
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        {
+          ok: false,
+          message: error.message || 'Error al obtener mis mascotas',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
   // 🔍 GET /api/pets/:id - Obtener mascota por ID
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
@@ -304,39 +337,6 @@ export class PetsController {
         {
           ok: false,
           message: error.message || 'Error al obtener mis estadísticas',
-        },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-  }
-
-  // 📋 GET /api/pets/my-pets - Obtener mascotas del usuario
-  @Get('my-pets')
-  @UseGuards(JwtAuthGuard)
-  async getMyPets(
-    @Request() req: any,
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '10',
-    @Query('status') status?: string,
-  ) {
-    try {
-      const userId = req.user.userId;
-      const result = await this.petsService.getPetsByUser(
-        userId,
-        parseInt(page),
-        parseInt(limit),
-        status,
-      );
-      
-      return {
-        ok: true,
-        data: result,
-      };
-    } catch (error) {
-      throw new HttpException(
-        {
-          ok: false,
-          message: error.message || 'Error al obtener mis mascotas',
         },
         HttpStatus.BAD_REQUEST,
       );
