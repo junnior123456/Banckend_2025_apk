@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -8,16 +8,20 @@ import { jwtConstants } from './jwt/jwt.constants';
 import { JwtStrategy } from './jwt/jwt.strategy';
 import { RolesService } from 'src/roles/roles.service';
 import { Rol } from 'src/roles/rol.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Rol]),
-  JwtModule.register({
-    global: true,
-    secret: jwtConstants.secret,
-    signOptions: { expiresIn: '30d' }, // 30 días para desarrollo
-  }),
-],
-  providers: [AuthService,RolesService, JwtStrategy],
-  controllers: [AuthController]
+  imports: [
+    TypeOrmModule.forFeature([User, Rol]),
+    JwtModule.register({
+      global: true,
+      secret: jwtConstants.secret,
+      signOptions: { expiresIn: '30d' }, // 30 días para desarrollo
+    }),
+    forwardRef(() => NotificationsModule),
+  ],
+  providers: [AuthService, RolesService, JwtStrategy],
+  controllers: [AuthController],
+  exports: [AuthService],
 })
 export class AuthModule {}

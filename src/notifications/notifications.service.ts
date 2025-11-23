@@ -626,4 +626,99 @@ export class NotificationsService {
       console.error('Error enviando notificaciones de mascota rescatada:', error);
     }
   }
+
+  // ========== NUEVAS NOTIFICACIONES PERSONALES ==========
+
+  // Notificación de bienvenida al registrarse
+  async sendWelcomeNotification(userId: number, userName: string): Promise<Notification> {
+    try {
+      return await this.createNotification(
+        userId,
+        '🎉 ¡Bienvenido a PawFinder!',
+        `Hola ${userName}, gracias por elegirnos. Juntos ayudaremos a más mascotas a encontrar un hogar.`,
+        NotificationType.WELCOME,
+        {
+          userName,
+          registeredAt: new Date().toISOString(),
+        },
+      );
+    } catch (error) {
+      console.error('Error enviando notificación de bienvenida:', error);
+      return null;
+    }
+  }
+
+  // Notificación personal al publicar mascota en adopción
+  async sendPetPublishedNotification(userId: number, pet: Pet): Promise<Notification> {
+    try {
+      return await this.createNotification(
+        userId,
+        '✅ Mascota publicada',
+        `Has puesto en adopción a ${pet.name}. Tu publicación ya está visible para todos.`,
+        NotificationType.PET_PUBLISHED,
+        {
+          petName: pet.name,
+          petId: pet.id,
+          publishedAt: new Date().toISOString(),
+        },
+        pet.id,
+        null,
+        userId,
+      );
+    } catch (error) {
+      console.error('Error enviando notificación de mascota publicada:', error);
+      return null;
+    }
+  }
+
+  // Notificación personal al publicar mascota en riesgo
+  async sendPetRiskPublishedNotification(userId: number, pet: Pet): Promise<Notification> {
+    try {
+      return await this.createNotification(
+        userId,
+        '⚠️ Reporte de riesgo publicado',
+        `Has reportado a ${pet.name} como mascota en riesgo. La comunidad ha sido notificada.`,
+        NotificationType.PET_RISK_PUBLISHED,
+        {
+          petName: pet.name,
+          petId: pet.id,
+          reportedAt: new Date().toISOString(),
+        },
+        pet.id,
+        null,
+        userId,
+      );
+    } catch (error) {
+      console.error('Error enviando notificación de mascota en riesgo publicada:', error);
+      return null;
+    }
+  }
+
+  // Notificación personal al enviar solicitud de adopción
+  async sendAdoptionRequestSentNotification(
+    adopterId: number,
+    pet: Pet,
+    adoptionRequestId: number,
+  ): Promise<Notification> {
+    try {
+      return await this.createNotification(
+        adopterId,
+        '📤 Solicitud enviada',
+        `Has enviado una solicitud para adoptar a ${pet.name}. Te notificaremos cuando el dueño responda.`,
+        NotificationType.ADOPTION_REQUEST_SENT,
+        {
+          petName: pet.name,
+          petId: pet.id,
+          adoptionRequestId,
+          sentAt: new Date().toISOString(),
+        },
+        pet.id,
+        adoptionRequestId,
+        adopterId,
+      );
+    } catch (error) {
+      console.error('Error enviando notificación de solicitud enviada:', error);
+      return null;
+    }
+  }
 }

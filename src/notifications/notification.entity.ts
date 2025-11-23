@@ -4,17 +4,30 @@ import { Pet } from '../pets/pet.entity';
 import { AdoptionRequest } from '../adoption/adoption-request.entity';
 
 export enum NotificationType {
+  // Notificaciones de adopción
   ADOPTION_REQUEST = 'adoption_request',
   ADOPTION_APPROVED = 'adoption_approved',
   ADOPTION_REJECTED = 'adoption_rejected',
   ADOPTION_COMPLETED = 'adoption_completed',
+  ADOPTION_REQUEST_SENT = 'adoption_request_sent', // Nueva: confirmación al enviar solicitud
+  
+  // Notificaciones de comentarios
   NEW_COMMENT = 'new_comment',
   COMMENT_REPLY = 'comment_reply',
+  
+  // Notificaciones de mascotas
   PET_ADOPTED = 'pet_adopted',
   PET_AVAILABLE = 'pet_available',
-  NEW_PET = 'new_pet',
-  PET_IN_RISK = 'pet_in_risk',
+  PET_PUBLISHED = 'pet_published', // Nueva: confirmación al publicar
+  NEW_PET = 'new_pet', // Comunitaria: nueva mascota disponible
+  PET_IN_RISK = 'pet_in_risk', // Comunitaria: mascota en riesgo
+  PET_RISK_PUBLISHED = 'pet_risk_published', // Nueva: confirmación al publicar en riesgo
+  
+  // Notificaciones de donaciones
   NEW_DONATION = 'new_donation',
+  
+  // Notificaciones del sistema
+  WELCOME = 'welcome', // Nueva: bienvenida al registrarse
   SYSTEM_MESSAGE = 'system_message'
 }
 

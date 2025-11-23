@@ -76,8 +76,9 @@ export class AdoptionService {
       where: { id: adopterId },
     });
 
-    // Enviar notificación al dueño de la mascota
+    // 📢 Enviar notificaciones
     try {
+      // 1. Notificación al dueño de la mascota (recibe la solicitud)
       await this.notificationsService.createNotification(
         pet.userId, // Usuario que recibe la notificación (dueño de la mascota)
         '🐾 Nueva Solicitud de Adopción',
@@ -94,8 +95,16 @@ export class AdoptionService {
         adopterId, // Usuario que genera la notificación (adoptante)
       );
       console.log(`✅ Notificación enviada al dueño de ${pet.name} (userId: ${pet.userId})`);
+
+      // 2. Notificación personal al adoptante (confirmación de envío)
+      await this.notificationsService.sendAdoptionRequestSentNotification(
+        adopterId,
+        pet,
+        savedRequest.id,
+      );
+      console.log(`✅ Notificación de confirmación enviada al adoptante (userId: ${adopterId})`);
     } catch (error) {
-      console.error('❌ Error enviando notificación:', error);
+      console.error('❌ Error enviando notificaciones:', error);
       // No lanzar error, la solicitud ya se creó exitosamente
     }
 

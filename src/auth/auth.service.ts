@@ -1,4 +1,4 @@
-import { Injectable,HttpException,HttpStatus } from '@nestjs/common';
+import { Injectable,HttpException,HttpStatus, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from 'src/users/user.entity';
 import { In, Repository } from 'typeorm';
@@ -8,6 +8,7 @@ import { compare, hash } from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { Rol } from 'src/roles/rol.entity';
 import { randomBytes } from 'crypto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class AuthService {
@@ -15,7 +16,9 @@ export class AuthService {
     constructor(
         @InjectRepository(User) private userRepository: Repository<User>,
         @InjectRepository(Rol) private rolesRepository: Repository<Rol>,
-        private jwtService: JwtService
+        private jwtService: JwtService,
+        @Inject(forwardRef(() => NotificationsService))
+        private notificationsService: NotificationsService
         ){}
         
         async register(user: registerAuthDto) {
@@ -55,6 +58,18 @@ export class AuthService {
     
             // Guardar la relación de roles
             await this.userRepository.save(userSaved);
+    
+            // 🎉 Enviar notificación de bienvenida
+            try {
+                await this.notificationsService.sendWelcomeNotification(
+                    userSaved.id,
+                    userSaved.name
+                );
+                console.log(`✅ Notificación de bienvenida enviada a: ${userSaved.name}`);
+            } catch (error) {
+                console.error('❌ Error enviando notificación de bienvenida:', error);
+                // No lanzar error, el registro fue exitoso
+            }
     
             const rolesString = userSaved.roles.map(rol => rol.id); //['CLIENT', 'ADMIN']
             const payload = { id: userSaved.id, name: userSaved.name, roles: rolesString };

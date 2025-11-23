@@ -48,17 +48,24 @@ export class PetsService {
         await this.petImageRepository.save(petImage);
       }
 
-      // Enviar notificaciones comunitarias (a todos los usuarios)
+      // 📢 Enviar notificaciones
       try {
         if (savedPet.isRisk) {
-          // Notificar sobre mascota en riesgo
+          // 1. Notificación personal al usuario que publicó
+          await this.notificationsService.sendPetRiskPublishedNotification(userId, savedPet);
+          
+          // 2. Notificación comunitaria (a todos los demás usuarios)
           await this.notificationsService.notifyNewPetInRisk(savedPet);
         } else {
-          // Notificar sobre mascota para adopción
+          // 1. Notificación personal al usuario que publicó
+          await this.notificationsService.sendPetPublishedNotification(userId, savedPet);
+          
+          // 2. Notificación comunitaria (a todos los demás usuarios)
           await this.notificationsService.notifyNewPetForAdoption(savedPet);
         }
+        console.log(`✅ Notificaciones enviadas para: ${savedPet.name}`);
       } catch (error) {
-        console.error('❌ Error enviando notificaciones comunitarias:', error);
+        console.error('❌ Error enviando notificaciones:', error);
         // No lanzar error, la mascota ya se creó exitosamente
       }
 
