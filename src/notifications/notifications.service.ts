@@ -411,4 +411,123 @@ export class NotificationsService {
   async sendTestNotification(userId: number): Promise<boolean> {
     return await this.pushNotificationService.sendTestNotification(userId);
   }
+
+  // Notificar a todos los usuarios sobre nueva mascota para adopción
+  async notifyNewPetForAdoption(pet: Pet): Promise<void> {
+    try {
+      // Obtener todos los usuarios activos excepto el que publicó
+      const users = await this.userRepository.find({
+        where: { isActive: true },
+      });
+
+      const notifications = users
+        .filter(user => user.id !== pet.userId)
+        .map(user => {
+          return this.notificationRepository.create({
+            userId: user.id,
+            title: '🐾 Nueva mascota para adopción',
+            message: `${pet.name} está disponible para adopción`,
+            type: NotificationType.NEW_PET,
+            petId: pet.id,
+            fromUserId: pet.userId,
+            data: {
+              petName: pet.name,
+              petCategory: pet.categoryId,
+              isRisk: false,
+            },
+          });
+        });
+
+      if (notifications.length > 0) {
+        await this.notificationRepository.save(notifications);
+        console.log(`✅ Notificaciones enviadas para nueva mascota en adopción: ${pet.name}`);
+      }
+    } catch (error) {
+      console.error('Error enviando notificaciones de nueva mascota:', error);
+    }
+  }
+
+  // Notificar a todos los usuarios sobre mascota en riesgo
+  async notifyNewPetInRisk(pet: Pet): Promise<void> {
+    try {
+      // Obtener todos los usuarios activos excepto el que reportó
+      const users = await this.userRepository.find({
+        where: { isActive: true },
+      });
+
+      const notifications = users
+        .filter(user => user.id !== pet.userId)
+        .map(user => {
+          return this.notificationRepository.create({
+            userId: user.id,
+            title: '⚠️ Mascota en riesgo reportada',
+            message: `${pet.name} ha sido reportado como en riesgo`,
+            type: NotificationType.PET_IN_RISK,
+            petId: pet.id,
+            fromUserId: pet.userId,
+            data: {
+              petName: pet.name,
+              petCategory: pet.categoryId,
+              isRisk: true,
+            },
+          });
+        });
+
+      if (notifications.length > 0) {
+        await this.notificationRepository.save(notifications);
+        console.log(`✅ Notificaciones enviadas para mascota en riesgo: ${pet.name}`);
+      }
+    } catch (error) {
+      console.error('Error enviando notificaciones de mascota en riesgo:', error);
+    }
+  }
+
+  // Notificar a todos los usuarios sobre nueva donación
+  async notifyNewDonation(donation: any): Promise<void> {
+    try {
+      // Obtener todos los usuarios activos excepto el donante
+      const users = await this.userRepository.find({
+        where: { isActive: true },
+      });
+
+      const donor = await this.userRepository.findOne({
+        where: { id: donation.userId },
+      });
+
+      const notifications = users
+        .filter(user => user.id !== donation.userId)
+        .map(user => {
+          return this.notificationRepository.create({
+            userId: user.id,
+            title: '💝 Nueva donación recibida',
+            message: `${donor?.name || 'Alguien'} ha realizado una donación de S/ ${donation.amount}`,
+            type: NotificationType.NEW_DONATION,
+            fromUserId: donation.userId,
+            data: {
+              donorName: donor?.name || 'Anónimo',
+              amount: donation.amount,
+              donationId: donation.id,
+            },
+          });
+        });
+
+      if (notifications.length > 0) {
+        await this.notificationRepository.save(notifications);
+        console.log(`✅ Notificaciones enviadas para nueva donación: S/ ${donation.amount}`);
+      }
+    } catch (error) {
+      console.error('Error enviando notificaciones de nueva donación:', error);
+    }
+  }
+
+  // Eliminar notificaciones asociadas a una mascota
+  async deleteNotificationsByPetId(petId: number): Promise<void> {
+    try {
+      await this.notificationRepository.delete({ petId });
+      console.log(`✅ Notificaciones eliminadas para mascota ID: ${petId}`);
+    } catch (error) {
+      console.error('Error eliminando notificaciones de mascota:', error);
+      // No lanzar error para no bloquear la eliminación de la mascota
+    }
+  }
 }

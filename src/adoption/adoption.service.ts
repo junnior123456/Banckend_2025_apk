@@ -167,17 +167,17 @@ export class AdoptionService {
       await this.petRepository.update(request.petId, { status: 'pending' });
       
       // Rechazar automáticamente otras solicitudes pendientes para esta mascota
-      await this.adoptionRequestRepository.update(
-        {
-          petId: request.petId,
-          status: AdoptionStatus.PENDING,
-          id: { $ne: requestId } as any,
-        },
-        {
+      await this.adoptionRequestRepository
+        .createQueryBuilder()
+        .update(AdoptionRequest)
+        .set({
           status: AdoptionStatus.REJECTED,
           rejectionReason: 'Se aprobó otra solicitud para esta mascota',
-        },
-      );
+        })
+        .where('petId = :petId', { petId: request.petId })
+        .andWhere('status = :status', { status: AdoptionStatus.PENDING })
+        .andWhere('id != :requestId', { requestId })
+        .execute();
     }
 
     const updatedRequest = await this.adoptionRequestRepository.save(request);
@@ -188,8 +188,8 @@ export class AdoptionService {
     return updatedRequest;
   }
 
-  // Marcar adopción como completada
-  async completeAdoption(requestId: number, donorId: number): Promise<AdoptionRequest> {
+  // Donante confirma entrega de mascota
+  async donorConfirmDelivery(requestId: number, donorId: number): Promise<AdoptionRequest> {
     const request = await this.adoptionRequestRepository.findOne({
       where: { id: requestId },
       relations: ['pet', 'adopter'],
@@ -201,26 +201,75 @@ export class AdoptionService {
 
     // Verificar que el usuario es el dueño de la mascota
     if (request.pet.userId !== donorId) {
-      throw new ForbiddenException('No tienes permisos para completar esta adopción');
+      throw new ForbiddenException('No tienes permisos para confirmar esta entrega');
     }
 
     // Verificar que la solicitud está aprobada
     if (request.status !== AdoptionStatus.APPROVED) {
-      throw new BadRequestException('Solo se pueden completar solicitudes aprobadas');
+      throw new BadRequestException('Solo se pueden confirmar entregas de solicitudes aprobadas');
     }
 
-    // Actualizar la solicitud y la mascota
-    request.status = AdoptionStatus.COMPLETED;
-    request.completedAt = new Date();
+    // Marcar confirmación del donante
+    request.donorConfirmedAt = new Date();
+    request.status = AdoptionStatus.AWAITING_ADOPTER_CONFIRMATION;
 
-    await this.petRepository.update(request.petId, { status: 'adopted' });
-    
-    const completedRequest = await this.adoptionRequestRepository.save(request);
+    const updatedRequest = await this.adoptionRequestRepository.save(request);
 
-    // TODO: Enviar notificación de adopción completada
-    // await this.notificationService.sendAdoptionCompletedNotification(request.adopterId, completedRequest);
+    // TODO: Enviar notificación al adoptante para que confirme
+    // await this.notificationService.sendAdopterConfirmationRequest(request.adopterId, updatedRequest);
 
-    return completedRequest;
+    return updatedRequest;
+  }
+
+  // Adoptante confirma recepción de mascota
+  async adopterConfirmReception(requestId: number, adopterId: number): Promise<AdoptionRequest> {
+    const request = await this.adoptionRequestRepository.findOne({
+      where: { id: requestId },
+      relations: ['pet', 'adopter'],
+    });
+
+    if (!request) {
+      throw new NotFoundException('Solicitud no encontrada');
+    }
+
+    // Verificar que el usuario es el adoptante
+    if (request.adopterId !== adopterId) {
+      throw new ForbiddenException('No tienes permisos para confirmar esta recepción');
+    }
+
+    // Verificar que la solicitud está aprobada o esperando confirmación del donante
+    if (![AdoptionStatus.APPROVED, AdoptionStatus.AWAITING_ADOPTER_CONFIRMATION].includes(request.status)) {
+      throw new BadRequestException('Solo se pueden confirmar solicitudes aprobadas');
+    }
+
+    // Marcar confirmación del adoptante
+    request.adopterConfirmedAt = new Date();
+
+    // Si el donante ya confirmó, completar la adopción
+    if (request.donorConfirmedAt) {
+      request.completedAt = new Date();
+      request.status = AdoptionStatus.COMPLETED;
+      
+      // Actualizar estado de la mascota a adoptada
+      await this.petRepository.update(request.petId, { status: 'adopted' });
+      
+      // TODO: Enviar notificación de adopción completada a ambos
+    } else {
+      // Si el donante no ha confirmado, cambiar a estado esperando donante
+      request.status = AdoptionStatus.AWAITING_ADOPTER_CONFIRMATION; // Reutilizamos este estado
+    }
+
+    const updatedRequest = await this.adoptionRequestRepository.save(request);
+
+    // TODO: Enviar notificación al donante para que confirme
+    // await this.notificationService.sendDonorConfirmationRequest(request.pet.userId, updatedRequest);
+
+    return updatedRequest;
+  }
+
+  // Método legacy para compatibilidad (ahora usa donorConfirmDelivery)
+  async completeAdoption(requestId: number, donorId: number): Promise<AdoptionRequest> {
+    return await this.donorConfirmDelivery(requestId, donorId);
   }
 
   // Cancelar solicitud de adopción (por el adoptante)

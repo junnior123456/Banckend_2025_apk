@@ -12,6 +12,9 @@ export enum NotificationType {
   COMMENT_REPLY = 'comment_reply',
   PET_ADOPTED = 'pet_adopted',
   PET_AVAILABLE = 'pet_available',
+  NEW_PET = 'new_pet',
+  PET_IN_RISK = 'pet_in_risk',
+  NEW_DONATION = 'new_donation',
   SYSTEM_MESSAGE = 'system_message'
 }
 

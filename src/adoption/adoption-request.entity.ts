@@ -6,6 +6,7 @@ export enum AdoptionStatus {
   PENDING = 'pending',
   APPROVED = 'approved',
   REJECTED = 'rejected',
+  AWAITING_ADOPTER_CONFIRMATION = 'awaiting_adopter_confirmation',
   COMPLETED = 'completed',
   CANCELLED = 'cancelled'
 }
@@ -66,7 +67,13 @@ export class AdoptionRequest {
   approvedAt: Date; // Fecha de aprobación
 
   @Column({ type: 'timestamp', nullable: true })
-  completedAt: Date; // Fecha de finalización
+  donorConfirmedAt: Date; // Fecha cuando el donante confirmó la entrega
+
+  @Column({ type: 'timestamp', nullable: true })
+  adopterConfirmedAt: Date; // Fecha cuando el adoptante confirmó la recepción
+
+  @Column({ type: 'timestamp', nullable: true })
+  completedAt: Date; // Fecha de finalización (cuando ambos confirmaron)
 
   @Column({ type: 'int' })
   petId: number;

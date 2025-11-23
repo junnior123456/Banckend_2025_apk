@@ -1,15 +1,18 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Donation, DonationStatus } from './donation.entity';
 import { CreateDonationDto } from './dto/create-donation.dto';
 import { UpdateDonationDto } from './dto/update-donation.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class DonationsService {
   constructor(
     @InjectRepository(Donation)
     private donationRepository: Repository<Donation>,
+    @Inject(forwardRef(() => NotificationsService))
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   // 💰 Crear nueva donación
@@ -23,6 +26,9 @@ export class DonationsService {
 
       const savedDonation = await this.donationRepository.save(donation);
       console.log(`✅ Donación creada: ID ${savedDonation.id}, Monto: ${savedDonation.amount}`);
+      
+      // Notificar a todos los usuarios sobre la nueva donación
+      await this.notificationsService.notifyNewDonation(savedDonation);
       
       return savedDonation;
     } catch (error) {

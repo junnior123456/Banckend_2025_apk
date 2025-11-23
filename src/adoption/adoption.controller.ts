@@ -176,7 +176,59 @@ export class AdoptionController {
     }
   }
 
-  // Marcar adopción como completada
+  // Donante confirma entrega de mascota
+  @Put('request/:id/donor-confirm')
+  async donorConfirmDelivery(@Param('id') id: string, @Request() req: any) {
+    try {
+      const donorId = req.user.userId;
+      const result = await this.adoptionService.donorConfirmDelivery(
+        parseInt(id),
+        donorId,
+      );
+      
+      return {
+        ok: true,
+        message: 'Entrega confirmada. Esperando confirmación del adoptante.',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        {
+          ok: false,
+          message: error.message || 'Error al confirmar entrega',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  // Adoptante confirma recepción de mascota
+  @Put('request/:id/adopter-confirm')
+  async adopterConfirmReception(@Param('id') id: string, @Request() req: any) {
+    try {
+      const adopterId = req.user.userId;
+      const result = await this.adoptionService.adopterConfirmReception(
+        parseInt(id),
+        adopterId,
+      );
+      
+      return {
+        ok: true,
+        message: '¡Adopción completada exitosamente!',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        {
+          ok: false,
+          message: error.message || 'Error al confirmar recepción',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  // Marcar adopción como completada (legacy - ahora usa donor-confirm)
   @Put('request/:id/complete')
   async completeAdoption(@Param('id') id: string, @Request() req: any) {
     try {
@@ -188,7 +240,7 @@ export class AdoptionController {
       
       return {
         ok: true,
-        message: 'Adopción marcada como completada',
+        message: 'Entrega confirmada. Esperando confirmación del adoptante.',
         data: result,
       };
     } catch (error) {

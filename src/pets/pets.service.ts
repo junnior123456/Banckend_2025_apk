@@ -1,4 +1,4 @@
-import { Injectable, HttpException, HttpStatus, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, NotFoundException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, Between, In } from 'typeorm';
 import { Pet } from './pet.entity';
@@ -7,6 +7,7 @@ import { UpdatePetDto } from './dto/update-pet.dto';
 import { SearchPetsDto } from './dto/search-pets.dto';
 import { PetImage } from './pet-image.entity';
 import { uploadToFirebase } from '../util/cloud_storage';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class PetsService {
@@ -15,6 +16,8 @@ export class PetsService {
     private readonly petRepository: Repository<Pet>,
     @InjectRepository(PetImage)
     private readonly petImageRepository: Repository<PetImage>,
+    @Inject(forwardRef(() => NotificationsService))
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   // ==================== CRUD BÁSICO ====================
@@ -43,6 +46,15 @@ export class PetsService {
           petId: savedPet.id,
         });
         await this.petImageRepository.save(petImage);
+      }
+
+      // Enviar notificaciones a todos los usuarios
+      if (savedPet.isRisk) {
+        // Notificar sobre mascota en riesgo
+        await this.notificationsService.notifyNewPetInRisk(savedPet);
+      } else {
+        // Notificar sobre mascota para adopción
+        await this.notificationsService.notifyNewPetForAdoption(savedPet);
       }
 
       return savedPet;
@@ -132,14 +144,28 @@ export class PetsService {
 
   // Eliminar mascota
   async remove(id: number): Promise<{ message: string }> {
-    const pet = await this.petRepository.findOne({ where: { id } });
-    
-    if (!pet) {
-      throw new NotFoundException('Mascota no encontrada');
+    try {
+      const pet = await this.petRepository.findOne({ where: { id } });
+      
+      if (!pet) {
+        throw new NotFoundException('Mascota no encontrada');
+      }
+      
+      // Eliminar notificaciones asociadas primero
+      await this.notificationsService.deleteNotificationsByPetId(id);
+      
+      // Eliminar imágenes asociadas
+      await this.petImageRepository.delete({ petId: id });
+      
+      // Eliminar la mascota
+      await this.petRepository.remove(pet);
+      
+      console.log(`✅ Mascota eliminada: ID ${id}, Nombre: ${pet.name}`);
+      return { message: 'Mascota eliminada exitosamente' };
+    } catch (error) {
+      console.error('Error eliminando mascota:', error);
+      throw new HttpException('Error al eliminar mascota', HttpStatus.INTERNAL_SERVER_ERROR);
     }
-    
-    await this.petRepository.remove(pet);
-    return { message: 'Mascota eliminada exitosamente' };
   }
 
   // ==================== BÚSQUEDAS ESPECÍFICAS ====================
