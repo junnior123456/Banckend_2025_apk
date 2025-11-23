@@ -57,6 +57,13 @@ export class User {
   @Column({ type: 'timestamp', nullable: true })
   lastLoginAt: Date; // Último login
 
+  // 🔐 Campos para recuperación de contraseña
+  @Column({ nullable: true })
+  resetPasswordToken: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  resetPasswordExpires: Date;
+
   @Column({
     type: 'datetime',
     default: () => 'CURRENT_TIMESTAMP',

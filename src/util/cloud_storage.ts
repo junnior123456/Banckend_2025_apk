@@ -110,3 +110,17 @@ export const storage = async (
 
 // Función auxiliar para mantener compatibilidad
 export const uploadToFirebase = storage;
+
+// Compatibilidad: subir desde un objeto que contiene `buffer`, `mimetype` y `originalname`
+export const uploadBufferToFirebase = async (
+  fileObj: { buffer: Buffer; mimetype: string; originalname: string },
+  prefix: string,
+) => {
+  const fileLike: any = {
+    buffer: fileObj.buffer,
+    mimetype: fileObj.mimetype,
+    originalname: fileObj.originalname,
+    size: fileObj.buffer ? fileObj.buffer.length : 0,
+  };
+  return storage(fileLike, `${prefix}${fileObj.originalname}`);
+};

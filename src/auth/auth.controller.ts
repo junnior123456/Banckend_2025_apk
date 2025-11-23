@@ -16,4 +16,26 @@ export class AuthController {
     login(@Body() loginData: LoginAuthDto) {
         return this.authService.login(loginData);
     }
+
+    // 🔍 Verificar si un correo ya existe
+    @Post('check-email') // http://localhost:3000/auth/check-email -> POST
+    checkEmail(@Body('email') email: string) {
+        return this.authService.checkEmail(email);
+    }
+
+    // 🔐 Solicitar recuperación de contraseña
+    @Post('forgot-password') // http://localhost:3000/auth/forgot-password -> POST
+    forgotPassword(@Body('email') email: string) {
+        return this.authService.requestPasswordReset(email);
+    }
+
+    // 🔄 Resetear contraseña con token
+    @Post('reset-password') // http://localhost:3000/auth/reset-password -> POST
+    resetPassword(
+        @Body('token') token: string,
+        @Body('password') password: string,
+    ) {
+        return this.authService.resetPassword(token, password);
+    }
 }
+

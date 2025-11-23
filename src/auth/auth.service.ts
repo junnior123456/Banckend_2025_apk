@@ -4,9 +4,10 @@ import { User } from 'src/users/user.entity';
 import { In, Repository } from 'typeorm';
 import { registerAuthDto } from './dto/register-auth-dto';
 import { LoginAuthDto } from './dto/login-auth.dto';
-import {compare} from 'bcrypt';
+import { compare, hash } from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { Rol } from 'src/roles/rol.entity';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -14,7 +15,6 @@ export class AuthService {
     constructor(
         @InjectRepository(User) private userRepository: Repository<User>,
         @InjectRepository(Rol) private rolesRepository: Repository<Rol>,
-
         private jwtService: JwtService
         ){}
         
@@ -104,6 +104,97 @@ export class AuthService {
     return data;
 }
 
-   
+    // 🔍 Verificar si un correo ya existe
+    async checkEmail(email: string) {
+        const user = await this.userRepository.findOne({
+            where: { email: email.toLowerCase().trim() },
+        });
+
+        return {
+            exists: !!user,
+            message: user ? 'El correo ya está registrado' : 'El correo está disponible',
+        };
+    }
+
+    // 🔐 Solicitar recuperación de contraseña
+    async requestPasswordReset(email: string) {
+        const user = await this.userRepository.findOne({ 
+            where: { email: email.toLowerCase().trim() } 
+        });
+
+        // Por seguridad, NO revelamos si el correo existe o no
+        if (!user) {
+            return {
+                success: true,
+                message: 'Si el correo está registrado, recibirás instrucciones para recuperar tu contraseña.',
+            };
+        }
+
+        // Generar token único de 32 bytes
+        const token = randomBytes(32).toString('hex');
+        const expires = new Date();
+        expires.setHours(expires.getHours() + 1); // Token válido por 1 hora
+
+        user.resetPasswordToken = token;
+        user.resetPasswordExpires = expires;
+
+        await this.userRepository.save(user);
+
+        const resetLink = `pawfinder://reset-password?token=${token}`;
+
+        console.log('🔐 Token de reseteo generado para:', email);
+        console.log('🔗 Link de reseteo:', resetLink);
+        console.log('⏰ Expira en:', expires);
+
+        return {
+            success: true,
+            message: 'Si el correo está registrado, recibirás instrucciones para recuperar tu contraseña.',
+            // 👇 Para desarrollo/demo
+            tokenDemo: token,
+            resetLinkDemo: resetLink,
+            expiresAt: expires,
+        };
+    }
+
+    // 🔄 Resetear contraseña con token
+    async resetPassword(token: string, newPassword: string) {
+        const user = await this.userRepository.findOne({
+            where: { resetPasswordToken: token },
+        });
+
+        if (!user) {
+            throw new HttpException(
+                'Token inválido o expirado',
+                HttpStatus.BAD_REQUEST,
+            );
+        }
+
+        // Verificar si el token ha expirado
+        if (!user.resetPasswordExpires || user.resetPasswordExpires < new Date()) {
+            throw new HttpException(
+                'El token ha expirado. Solicita uno nuevo.',
+                HttpStatus.BAD_REQUEST,
+            );
+        }
+
+        // Encriptar la nueva contraseña
+        const saltRounds = Number(process.env.HASH_SALT) || 10;
+        user.password = await hash(newPassword, saltRounds);
+
+        // Limpiar tokens de reseteo
+        user.resetPasswordToken = null;
+        user.resetPasswordExpires = null;
+
+        await this.userRepository.save(user);
+
+        console.log('✅ Contraseña actualizada para usuario:', user.email);
+
+        return {
+            success: true,
+            message: 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.',
+        };
+    }
 
 }
+
+

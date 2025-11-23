@@ -18,6 +18,7 @@ import { CommentsModule } from './comments/comments.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReportsModule } from './reports/reports.module';
 import { SearchModule } from './search/search.module';
+import { DonationsModule } from './donations/donations.module';
 
 // === Entidades PawFinder ===
 import { User } from './users/user.entity';
@@ -29,6 +30,7 @@ import { AdoptionRequest } from './adoption/adoption-request.entity';
 import { Comment } from './comments/comment.entity';
 import { Notification } from './notifications/notification.entity';
 import { Report } from './reports/report.entity';
+import { Donation } from './donations/donation.entity';
 
 @Module({
   imports: [
@@ -56,6 +58,7 @@ import { Report } from './reports/report.entity';
         Comment,
         Notification,
         Report,
+        Donation,
       ],
       synchronize: true, // ⚠️ En desarrollo: true. En producción: false
     }),
@@ -72,6 +75,7 @@ import { Report } from './reports/report.entity';
     NotificationsModule,
     ReportsModule,
     SearchModule,
+    DonationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

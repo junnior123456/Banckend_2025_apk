@@ -1,99 +1,54 @@
-import { IsOptional, IsString, IsNumber, IsBoolean, IsArray, IsEnum } from 'class-validator';
-
-export enum PetType {
-  DOG = 'dog',
-  CAT = 'cat',
-  BIRD = 'bird',
-  RABBIT = 'rabbit',
-  OTHER = 'other'
-}
-
-export enum PetSize {
-  SMALL = 'Pequeño',
-  MEDIUM = 'Mediano',
-  LARGE = 'Grande'
-}
-
-export enum PetGender {
-  MALE = 'Macho',
-  FEMALE = 'Hembra'
-}
+import { IsOptional, IsString, IsNumber, IsBoolean } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class SearchPetsDto {
   @IsOptional()
   @IsString()
-  query?: string; // Búsqueda por nombre o descripción
-
-  @IsOptional()
-  @IsNumber()
-  categoryId?: number;
+  name?: string;
 
   @IsOptional()
   @IsString()
   breed?: string;
 
   @IsOptional()
-  @IsEnum(PetSize)
-  size?: PetSize;
-
-  @IsOptional()
-  @IsEnum(PetGender)
-  gender?: PetGender;
+  @Type(() => Number)
+  @IsNumber()
+  categoryId?: number;
 
   @IsOptional()
   @IsString()
-  ageRange?: string; // 'puppy', 'young', 'adult', 'senior'
+  gender?: string;
 
   @IsOptional()
+  @IsString()
+  size?: string;
+
+  @IsOptional()
+  @Type(() => Boolean)
   @IsBoolean()
   isVaccinated?: boolean;
 
   @IsOptional()
+  @Type(() => Boolean)
   @IsBoolean()
   isSterilized?: boolean;
 
   @IsOptional()
   @IsString()
-  location?: string;
+  status?: string;
 
   @IsOptional()
-  @IsNumber()
-  latitude?: number;
-
-  @IsOptional()
-  @IsNumber()
-  longitude?: number;
-
-  @IsOptional()
-  @IsNumber()
-  radius?: number; // Radio en kilómetros
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  temperament?: string[];
-
-  @IsOptional()
-  @IsString()
-  status?: string; // 'available', 'pending', 'adopted'
-
-  @IsOptional()
+  @Type(() => Boolean)
   @IsBoolean()
-  hasSpecialNeeds?: boolean;
+  isRisk?: boolean;
 
   @IsOptional()
-  @IsString()
-  sortBy?: string; // 'createdAt', 'name', 'age', 'distance'
-
-  @IsOptional()
-  @IsString()
-  sortOrder?: 'ASC' | 'DESC';
-
-  @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   page?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   limit?: number;
 }

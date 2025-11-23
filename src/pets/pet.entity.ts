@@ -84,6 +84,19 @@ export class Pet {
   @Column({ type: 'boolean', default: true })
   isActive: boolean; // Si la publicación está activa
 
+  // 📋 Requisitos para adopción
+  @Column({ type: 'boolean', default: false })
+  requiresOwnHome: boolean; // Requiere casa propia
+
+  @Column({ type: 'boolean', default: false })
+  requiresSufficientSpace: boolean; // Requiere espacio suficiente
+
+  @Column({ type: 'boolean', default: false })
+  requiresStableEconomy: boolean; // Requiere economía estable
+
+  @Column({ type: 'text', nullable: true })
+  additionalRequirements: string; // Requisitos adicionales
+
   @Column({ 
     type: 'timestamp', 
     default: () => 'CURRENT_TIMESTAMP',
