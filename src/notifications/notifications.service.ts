@@ -412,40 +412,7 @@ export class NotificationsService {
     return await this.pushNotificationService.sendTestNotification(userId);
   }
 
-  // Notificar a todos los usuarios sobre nueva mascota para adopción
-  async notifyNewPetForAdoption(pet: Pet): Promise<void> {
-    try {
-      // Obtener todos los usuarios activos excepto el que publicó
-      const users = await this.userRepository.find({
-        where: { isActive: true },
-      });
-
-      const notifications = users
-        .filter(user => user.id !== pet.userId)
-        .map(user => {
-          return this.notificationRepository.create({
-            userId: user.id,
-            title: '🐾 Nueva mascota para adopción',
-            message: `${pet.name} está disponible para adopción`,
-            type: NotificationType.NEW_PET,
-            petId: pet.id,
-            fromUserId: pet.userId,
-            data: {
-              petName: pet.name,
-              petCategory: pet.categoryId,
-              isRisk: false,
-            },
-          });
-        });
-
-      if (notifications.length > 0) {
-        await this.notificationRepository.save(notifications);
-        console.log(`✅ Notificaciones enviadas para nueva mascota en adopción: ${pet.name}`);
-      }
-    } catch (error) {
-      console.error('Error enviando notificaciones de nueva mascota:', error);
-    }
-  }
+  // (Método movido al final del archivo para mejor organización)
 
   // Notificar a todos los usuarios sobre mascota en riesgo
   async notifyNewPetInRisk(pet: Pet): Promise<void> {
@@ -528,6 +495,135 @@ export class NotificationsService {
     } catch (error) {
       console.error('Error eliminando notificaciones de mascota:', error);
       // No lanzar error para no bloquear la eliminación de la mascota
+    }
+  }
+
+  // ========== NOTIFICACIONES COMUNITARIAS (A TODOS LOS USUARIOS) ==========
+
+  // Notificar a todos sobre nueva mascota disponible para adopción
+  async notifyNewPetForAdoption(pet: Pet): Promise<void> {
+    try {
+      // Obtener todos los usuarios activos excepto el que publicó
+      const users = await this.userRepository.find({
+        where: { isActive: true },
+      });
+
+      const owner = await this.userRepository.findOne({
+        where: { id: pet.userId },
+      });
+
+      const notifications = users
+        .filter(user => user.id !== pet.userId)
+        .map(user => {
+          return this.notificationRepository.create({
+            userId: user.id,
+            title: '🐾 Nueva mascota disponible',
+            message: `${pet.name} está disponible para adopción`,
+            type: NotificationType.NEW_PET,
+            petId: pet.id,
+            fromUserId: pet.userId,
+            data: {
+              petName: pet.name,
+              petCategory: pet.categoryId,
+              ownerName: owner?.name || 'Usuario',
+              isRisk: false,
+            },
+          });
+        });
+
+      if (notifications.length > 0) {
+        await this.notificationRepository.save(notifications);
+        console.log(`✅ Notificaciones comunitarias enviadas: Nueva mascota ${pet.name}`);
+      }
+    } catch (error) {
+      console.error('Error enviando notificaciones de nueva mascota:', error);
+    }
+  }
+
+  // Notificar a todos sobre adopción completada (estadística comunitaria)
+  async notifyAdoptionCompleted(pet: Pet, adopter: User): Promise<void> {
+    try {
+      // Obtener todos los usuarios activos excepto el adoptante y el donante
+      const users = await this.userRepository.find({
+        where: { isActive: true },
+      });
+
+      // Contar adopciones completadas este mes
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const adoptionsThisMonth = await this.notificationRepository.count({
+        where: {
+          type: NotificationType.ADOPTION_COMPLETED,
+          createdAt: startOfMonth as any, // TypeORM maneja esto correctamente
+        },
+      });
+
+      const notifications = users
+        .filter(user => user.id !== pet.userId && user.id !== adopter.id)
+        .map(user => {
+          return this.notificationRepository.create({
+            userId: user.id,
+            title: '🎉 ¡Adopción exitosa!',
+            message: `${pet.name} encontró un hogar. ¡Ya son ${adoptionsThisMonth + 1} adopciones este mes!`,
+            type: NotificationType.ADOPTION_COMPLETED,
+            petId: pet.id,
+            fromUserId: adopter.id,
+            data: {
+              petName: pet.name,
+              adopterName: adopter.name,
+              adoptionsThisMonth: adoptionsThisMonth + 1,
+              isCommunityNotification: true,
+            },
+          });
+        });
+
+      if (notifications.length > 0) {
+        await this.notificationRepository.save(notifications);
+        console.log(`✅ Notificaciones comunitarias enviadas: Adopción de ${pet.name} (${adoptionsThisMonth + 1} este mes)`);
+      }
+    } catch (error) {
+      console.error('Error enviando notificaciones de adopción completada:', error);
+    }
+  }
+
+  // Notificar a todos sobre mascota rescatada (cambió de riesgo a adopción)
+  async notifyPetRescued(pet: Pet): Promise<void> {
+    try {
+      // Obtener todos los usuarios activos excepto el rescatador
+      const users = await this.userRepository.find({
+        where: { isActive: true },
+      });
+
+      const rescuer = await this.userRepository.findOne({
+        where: { id: pet.userId },
+      });
+
+      const notifications = users
+        .filter(user => user.id !== pet.userId)
+        .map(user => {
+          return this.notificationRepository.create({
+            userId: user.id,
+            title: '💚 ¡Mascota rescatada!',
+            message: `${pet.name} fue rescatado y ahora está fuera de peligro`,
+            type: NotificationType.PET_AVAILABLE,
+            petId: pet.id,
+            fromUserId: pet.userId,
+            data: {
+              petName: pet.name,
+              rescuerName: rescuer?.name || 'Usuario',
+              wasInRisk: true,
+            },
+          });
+        });
+
+      if (notifications.length > 0) {
+        await this.notificationRepository.save(notifications);
+        console.log(`✅ Notificaciones comunitarias enviadas: Mascota rescatada ${pet.name}`);
+      }
+    } catch (error) {
+      console.error('Error enviando notificaciones de mascota rescatada:', error);
     }
   }
 }

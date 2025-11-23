@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AdoptionRequest, AdoptionStatus } from './adoption-request.entity';
@@ -6,6 +6,8 @@ import { Pet } from '../pets/pet.entity';
 import { User } from '../users/user.entity';
 import { CreateAdoptionRequestDto } from './dto/create-adoption-request.dto';
 import { UpdateAdoptionRequestDto } from './dto/update-adoption-request.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/notification.entity';
 
 @Injectable()
 export class AdoptionService {
@@ -16,6 +18,8 @@ export class AdoptionService {
     private petRepository: Repository<Pet>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @Inject(forwardRef(() => NotificationsService))
+    private notificationsService: NotificationsService,
   ) {}
 
   // Crear nueva solicitud de adopción
@@ -67,8 +71,33 @@ export class AdoptionService {
 
     const savedRequest = await this.adoptionRequestRepository.save(adoptionRequest);
 
-    // TODO: Enviar notificación al dueño de la mascota
-    // await this.notificationService.sendAdoptionRequestNotification(pet.userId, savedRequest);
+    // Obtener información del adoptante
+    const adopter = await this.userRepository.findOne({
+      where: { id: adopterId },
+    });
+
+    // Enviar notificación al dueño de la mascota
+    try {
+      await this.notificationsService.createNotification(
+        pet.userId, // Usuario que recibe la notificación (dueño de la mascota)
+        '🐾 Nueva Solicitud de Adopción',
+        `${adopter?.name || 'Alguien'} quiere adoptar a ${pet.name}`,
+        NotificationType.ADOPTION_REQUEST,
+        {
+          requestId: savedRequest.id,
+          petId: pet.id,
+          petName: pet.name,
+          adopterName: adopter?.name || 'Usuario',
+        },
+        pet.id,
+        savedRequest.id,
+        adopterId, // Usuario que genera la notificación (adoptante)
+      );
+      console.log(`✅ Notificación enviada al dueño de ${pet.name} (userId: ${pet.userId})`);
+    } catch (error) {
+      console.error('❌ Error enviando notificación:', error);
+      // No lanzar error, la solicitud ya se creó exitosamente
+    }
 
     return await this.adoptionRequestRepository.findOne({
       where: { id: savedRequest.id },
@@ -182,8 +211,46 @@ export class AdoptionService {
 
     const updatedRequest = await this.adoptionRequestRepository.save(request);
 
-    // TODO: Enviar notificación al adoptante
-    // await this.notificationService.sendAdoptionStatusNotification(request.adopterId, updatedRequest);
+    // Enviar notificación al adoptante sobre el cambio de estado
+    try {
+      if (updateDto.status === AdoptionStatus.APPROVED) {
+        await this.notificationsService.createNotification(
+          request.adopterId,
+          '✅ Solicitud Aprobada',
+          `¡Felicidades! Tu solicitud para adoptar a ${request.pet.name} ha sido aprobada`,
+          NotificationType.ADOPTION_APPROVED,
+          {
+            requestId: request.id,
+            petId: request.pet.id,
+            petName: request.pet.name,
+            donorComments: updateDto.donorComments,
+          },
+          request.pet.id,
+          request.id,
+          donorId,
+        );
+        console.log(`✅ Notificación de aprobación enviada al adoptante (userId: ${request.adopterId})`);
+      } else if (updateDto.status === AdoptionStatus.REJECTED) {
+        await this.notificationsService.createNotification(
+          request.adopterId,
+          '❌ Solicitud Rechazada',
+          `Tu solicitud para adoptar a ${request.pet.name} ha sido rechazada`,
+          NotificationType.ADOPTION_REJECTED,
+          {
+            requestId: request.id,
+            petId: request.pet.id,
+            petName: request.pet.name,
+            rejectionReason: updateDto.rejectionReason,
+          },
+          request.pet.id,
+          request.id,
+          donorId,
+        );
+        console.log(`✅ Notificación de rechazo enviada al adoptante (userId: ${request.adopterId})`);
+      }
+    } catch (error) {
+      console.error('❌ Error enviando notificación de estado:', error);
+    }
 
     return updatedRequest;
   }
@@ -204,20 +271,100 @@ export class AdoptionService {
       throw new ForbiddenException('No tienes permisos para confirmar esta entrega');
     }
 
-    // Verificar que la solicitud está aprobada
-    if (request.status !== AdoptionStatus.APPROVED) {
+    // Verificar que la solicitud está aprobada o esperando confirmación
+    if (![AdoptionStatus.APPROVED, AdoptionStatus.AWAITING_ADOPTER_CONFIRMATION].includes(request.status)) {
       throw new BadRequestException('Solo se pueden confirmar entregas de solicitudes aprobadas');
+    }
+    
+    // Si el donante ya confirmó antes, no permitir confirmar de nuevo
+    if (request.donorConfirmedAt) {
+      throw new BadRequestException('Ya confirmaste la entrega anteriormente');
     }
 
     // Marcar confirmación del donante
     request.donorConfirmedAt = new Date();
-    request.status = AdoptionStatus.AWAITING_ADOPTER_CONFIRMATION;
+
+    // Si el adoptante ya confirmó, completar la adopción
+    if (request.adopterConfirmedAt) {
+      request.completedAt = new Date();
+      request.status = AdoptionStatus.COMPLETED;
+      
+      // Actualizar estado de la mascota a adoptada
+      await this.petRepository.update(request.petId, { status: 'adopted' });
+      
+      // Enviar notificación de adopción completada a ambos
+      try {
+        // Notificación al donante
+        await this.notificationsService.createNotification(
+          request.pet.userId,
+          '🎉 ¡Adopción Completada!',
+          `La adopción de ${request.pet.name} se ha completado exitosamente`,
+          NotificationType.PET_ADOPTED,
+          {
+            requestId: request.id,
+            petId: request.pet.id,
+            petName: request.pet.name,
+            adopterName: request.adopter?.name || 'El adoptante',
+          },
+          request.pet.id,
+          request.id,
+          request.adopterId,
+        );
+
+        // Notificación al adoptante
+        await this.notificationsService.createNotification(
+          request.adopterId,
+          '🎉 ¡Adopción Completada!',
+          `¡Felicidades! La adopción de ${request.pet.name} se ha completado exitosamente`,
+          NotificationType.ADOPTION_COMPLETED,
+          {
+            requestId: request.id,
+            petId: request.pet.id,
+            petName: request.pet.name,
+          },
+          request.pet.id,
+          request.id,
+          request.pet.userId,
+        );
+        console.log(`✅ Notificaciones de adopción completada enviadas a ambos usuarios`);
+
+        // Enviar notificación comunitaria sobre la adopción completada
+        try {
+          await this.notificationsService.notifyAdoptionCompleted(request.pet, request.adopter);
+          console.log(`✅ Notificación comunitaria enviada sobre adopción de ${request.pet.name}`);
+        } catch (error) {
+          console.error('❌ Error enviando notificación comunitaria:', error);
+        }
+      } catch (error) {
+        console.error('❌ Error enviando notificaciones de adopción completada:', error);
+      }
+    } else {
+      // Si el adoptante no ha confirmado, cambiar a estado esperando adoptante
+      request.status = AdoptionStatus.AWAITING_ADOPTER_CONFIRMATION;
+      
+      // Enviar notificación al adoptante para que confirme la recepción
+      try {
+        await this.notificationsService.createNotification(
+          request.adopterId,
+          '📦 Confirma la Recepción',
+          `El dueño de ${request.pet.name} ha confirmado la entrega. Por favor, confirma que recibiste a tu nueva mascota`,
+          NotificationType.ADOPTION_COMPLETED,
+          {
+            requestId: request.id,
+            petId: request.pet.id,
+            petName: request.pet.name,
+          },
+          request.pet.id,
+          request.id,
+          donorId,
+        );
+        console.log(`✅ Notificación de confirmación enviada al adoptante (userId: ${request.adopterId})`);
+      } catch (error) {
+        console.error('❌ Error enviando notificación de confirmación:', error);
+      }
+    }
 
     const updatedRequest = await this.adoptionRequestRepository.save(request);
-
-    // TODO: Enviar notificación al adoptante para que confirme
-    // await this.notificationService.sendAdopterConfirmationRequest(request.adopterId, updatedRequest);
-
     return updatedRequest;
   }
 
@@ -253,16 +400,79 @@ export class AdoptionService {
       // Actualizar estado de la mascota a adoptada
       await this.petRepository.update(request.petId, { status: 'adopted' });
       
-      // TODO: Enviar notificación de adopción completada a ambos
+      // Enviar notificación de adopción completada a ambos
+      try {
+        // Notificación al adoptante
+        await this.notificationsService.createNotification(
+          request.adopterId,
+          '🎉 ¡Adopción Completada!',
+          `¡Felicidades! La adopción de ${request.pet.name} se ha completado exitosamente`,
+          NotificationType.ADOPTION_COMPLETED,
+          {
+            requestId: request.id,
+            petId: request.pet.id,
+            petName: request.pet.name,
+          },
+          request.pet.id,
+          request.id,
+          request.pet.userId,
+        );
+
+        // Notificación al donante
+        await this.notificationsService.createNotification(
+          request.pet.userId,
+          '🎉 ¡Adopción Completada!',
+          `La adopción de ${request.pet.name} se ha completado exitosamente`,
+          NotificationType.PET_ADOPTED,
+          {
+            requestId: request.id,
+            petId: request.pet.id,
+            petName: request.pet.name,
+            adopterName: request.adopter?.name || 'El adoptante',
+          },
+          request.pet.id,
+          request.id,
+          request.adopterId,
+        );
+        console.log(`✅ Notificaciones de adopción completada enviadas a ambos usuarios`);
+
+        // Enviar notificación comunitaria sobre la adopción completada
+        try {
+          await this.notificationsService.notifyAdoptionCompleted(request.pet, request.adopter);
+          console.log(`✅ Notificación comunitaria enviada sobre adopción de ${request.pet.name}`);
+        } catch (error) {
+          console.error('❌ Error enviando notificación comunitaria:', error);
+        }
+      } catch (error) {
+        console.error('❌ Error enviando notificaciones de adopción completada:', error);
+      }
     } else {
       // Si el donante no ha confirmado, cambiar a estado esperando donante
       request.status = AdoptionStatus.AWAITING_ADOPTER_CONFIRMATION; // Reutilizamos este estado
+      
+      // Enviar notificación al donante para que confirme
+      try {
+        await this.notificationsService.createNotification(
+          request.pet.userId,
+          '📦 Confirma la Entrega',
+          `${request.adopter?.name || 'El adoptante'} ha confirmado que recibió a ${request.pet.name}. Por favor, confirma la entrega`,
+          NotificationType.ADOPTION_COMPLETED,
+          {
+            requestId: request.id,
+            petId: request.pet.id,
+            petName: request.pet.name,
+          },
+          request.pet.id,
+          request.id,
+          request.adopterId,
+        );
+        console.log(`✅ Notificación de confirmación enviada al donante (userId: ${request.pet.userId})`);
+      } catch (error) {
+        console.error('❌ Error enviando notificación al donante:', error);
+      }
     }
 
     const updatedRequest = await this.adoptionRequestRepository.save(request);
-
-    // TODO: Enviar notificación al donante para que confirme
-    // await this.notificationService.sendDonorConfirmationRequest(request.pet.userId, updatedRequest);
 
     return updatedRequest;
   }
