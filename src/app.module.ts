@@ -40,9 +40,9 @@ import { Donation } from './donations/donation.entity';
       envFilePath: '.env',
     }),
 
-    // 💾 Conexión a MySQL (compatible con Railway)
+    // 💾 Conexión a base de datos (MySQL o PostgreSQL)
     TypeOrmModule.forRoot({
-      type: 'mysql',
+      type: (process.env.DB_TYPE as any) || 'mysql',
       host: process.env.MYSQL_HOST || process.env.DB_HOST || 'localhost',
       port: Number(process.env.MYSQL_PORT || process.env.DB_PORT || 3306),
       username: process.env.MYSQL_USER || process.env.DB_USER || 'root',
@@ -60,8 +60,9 @@ import { Donation } from './donations/donation.entity';
         Report,
         Donation,
       ],
-      synchronize: process.env.NODE_ENV !== 'production', // ⚠️ false en producción
+      synchronize: true, // Crear tablas automáticamente
       logging: process.env.NODE_ENV !== 'production',
+      ssl: process.env.DB_TYPE === 'postgres' ? { rejectUnauthorized: false } : false,
     }),
 
     // 🔹 Módulos PawFinder
