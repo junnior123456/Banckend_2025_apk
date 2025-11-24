@@ -41,29 +41,51 @@ import { Donation } from './donations/donation.entity';
     }),
 
     // 💾 Conexión a base de datos (MySQL o PostgreSQL)
-    TypeOrmModule.forRoot({
-      type: (process.env.DB_TYPE as any) || 'mysql',
-      host: process.env.MYSQL_HOST || process.env.DB_HOST || 'localhost',
-      port: Number(process.env.MYSQL_PORT || process.env.DB_PORT || 3306),
-      username: process.env.MYSQL_USER || process.env.DB_USER || 'root',
-      password: process.env.MYSQL_PASSWORD || process.env.DB_PASS || 'admin123',
-      database: process.env.MYSQL_DATABASE || process.env.DB_NAME || 'ecommerce',
-      entities: [
-        User,
-        Rol,
-        Pet,
-        Category,
-        PetImage,
-        AdoptionRequest,
-        Comment,
-        Notification,
-        Report,
-        Donation,
-      ],
-      synchronize: true, // Crear tablas automáticamente
-      logging: process.env.NODE_ENV !== 'production',
-      ssl: process.env.DB_TYPE === 'postgres' ? { rejectUnauthorized: false } : false,
-    }),
+    TypeOrmModule.forRoot(
+      process.env.DATABASE_URL
+        ? {
+            type: 'postgres',
+            url: process.env.DATABASE_URL,
+            entities: [
+              User,
+              Rol,
+              Pet,
+              Category,
+              PetImage,
+              AdoptionRequest,
+              Comment,
+              Notification,
+              Report,
+              Donation,
+            ],
+            synchronize: true,
+            logging: process.env.NODE_ENV !== 'production',
+            ssl: { rejectUnauthorized: false },
+          }
+        : {
+            type: (process.env.DB_TYPE as any) || 'mysql',
+            host: process.env.MYSQL_HOST || process.env.DB_HOST || 'localhost',
+            port: Number(process.env.MYSQL_PORT || process.env.DB_PORT || 3306),
+            username: process.env.MYSQL_USER || process.env.DB_USER || 'root',
+            password: process.env.MYSQL_PASSWORD || process.env.DB_PASS || 'admin123',
+            database: process.env.MYSQL_DATABASE || process.env.DB_NAME || 'ecommerce',
+            entities: [
+              User,
+              Rol,
+              Pet,
+              Category,
+              PetImage,
+              AdoptionRequest,
+              Comment,
+              Notification,
+              Report,
+              Donation,
+            ],
+            synchronize: true,
+            logging: process.env.NODE_ENV !== 'production',
+            ssl: process.env.DB_TYPE === 'postgres' ? { rejectUnauthorized: false } : false,
+          }
+    ),
 
     // 🔹 Módulos PawFinder
     UsersModule,
