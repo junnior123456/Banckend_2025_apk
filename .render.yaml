@@ -3,5 +3,5 @@ services:
     name: pawfinder-backend
     env: node
     buildCommand: npm ci && npm run build
-    startCommand: npm run start:prod
+    startCommand: npm start
     healthCheckPath: /api/health
