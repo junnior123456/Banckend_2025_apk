@@ -25,6 +25,29 @@ export class PetsService {
   // Crear mascota
   async create(createPetDto: CreatePetDto, userId: number, file?: Express.Multer.File): Promise<Pet> {
     try {
+      // 🔍 Verificar si ya existe una mascota con el mismo nombre del mismo usuario (prevenir duplicados)
+      const existingPet = await this.petRepository.findOne({
+        where: {
+          name: createPetDto.name,
+          userId: userId,
+          isActive: true,
+        },
+      });
+
+      if (existingPet) {
+        // Si existe una mascota con el mismo nombre creada en los últimos 5 minutos, es probable que sea un duplicado
+        const timeDiff = Date.now() - existingPet.createdAt.getTime();
+        const fiveMinutes = 5 * 60 * 1000;
+        
+        if (timeDiff < fiveMinutes) {
+          console.log(`⚠️ Posible duplicado detectado: ${createPetDto.name} (creado hace ${Math.floor(timeDiff / 1000)}s)`);
+          throw new HttpException(
+            'Ya existe una mascota con este nombre publicada recientemente. Por favor espera unos minutos antes de publicar otra.',
+            HttpStatus.CONFLICT,
+          );
+        }
+      }
+
       const pet = this.petRepository.create({
         ...createPetDto,
         userId: userId,
@@ -205,6 +228,7 @@ export class PetsService {
   async findInRisk(categoryId?: number): Promise<Pet[]> {
     const query = this.petRepository.createQueryBuilder('pet')
       .where('pet.isRisk = :isRisk', { isRisk: true })
+      .andWhere('pet.status = :status', { status: 'available' }) // ✅ Solo mostrar mascotas disponibles
       .andWhere('pet.isActive = :isActive', { isActive: true })
       .leftJoinAndSelect('pet.user', 'user')
       .leftJoinAndSelect('pet.images', 'images')
@@ -230,7 +254,9 @@ export class PetsService {
       const skip = (page - 1) * limit;
       
       const query = this.petRepository.createQueryBuilder('pet')
+        .distinct(true) // 🔧 Agregar DISTINCT para evitar duplicados
         .where('pet.userId = :userId', { userId })
+        .andWhere('pet.isActive = :isActive', { isActive: true }) // 🔧 Solo mascotas activas
         .leftJoinAndSelect('pet.images', 'images')
         .leftJoinAndSelect('pet.category', 'category')
         .leftJoinAndSelect('pet.adoptionRequests', 'adoptionRequests');

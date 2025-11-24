@@ -23,6 +23,9 @@ export class Pet {
   @Column({ type: 'boolean', default: false })
   isRisk: boolean; // false = adopción, true = en riesgo
 
+  @Column({ type: 'json', nullable: true })
+  riskTypes: string[]; // ✅ NUEVO: Tipos de riesgo como array de strings
+
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
 

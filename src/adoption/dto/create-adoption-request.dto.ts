@@ -36,4 +36,21 @@ export class CreateAdoptionRequestDto {
   @IsOptional()
   @IsBoolean()
   hasOtherPets?: boolean;
+
+  // ✅ Campos adicionales para animales en riesgo
+  @IsOptional()
+  @IsString()
+  rescuePlan?: string;
+
+  @IsOptional()
+  @IsString()
+  medicalCare?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  canProvideMedicalCare?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  hasTransportation?: boolean;
 }

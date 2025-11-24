@@ -40,6 +40,19 @@ export class AdoptionRequest {
   @Column({ type: 'boolean', default: false })
   hasOtherPets: boolean; // Tiene otras mascotas
 
+  // ✅ Campos adicionales para animales en riesgo
+  @Column({ type: 'text', nullable: true })
+  rescuePlan: string; // Plan de rescate y cuidado
+
+  @Column({ type: 'text', nullable: true })
+  medicalCare: string; // Plan de atención médica
+
+  @Column({ type: 'boolean', default: false })
+  canProvideMedicalCare: boolean; // Puede costear atención veterinaria
+
+  @Column({ type: 'boolean', default: false })
+  hasTransportation: boolean; // Tiene transporte disponible
+
   @Column({ 
     type: 'enum', 
     enum: AdoptionStatus, 

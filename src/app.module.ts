@@ -40,14 +40,14 @@ import { Donation } from './donations/donation.entity';
       envFilePath: '.env',
     }),
 
-    // 💾 Conexión a MySQL
+    // 💾 Conexión a MySQL (compatible con Railway)
     TypeOrmModule.forRoot({
       type: 'mysql',
-      host: process.env.DB_HOST || 'localhost',
-      port: Number(process.env.DB_PORT || 3306),
-      username: process.env.DB_USER || 'root',
-      password: process.env.DB_PASS || 'admin123',
-      database: process.env.DB_NAME || 'ecommerce',
+      host: process.env.MYSQL_HOST || process.env.DB_HOST || 'localhost',
+      port: Number(process.env.MYSQL_PORT || process.env.DB_PORT || 3306),
+      username: process.env.MYSQL_USER || process.env.DB_USER || 'root',
+      password: process.env.MYSQL_PASSWORD || process.env.DB_PASS || 'admin123',
+      database: process.env.MYSQL_DATABASE || process.env.DB_NAME || 'ecommerce',
       entities: [
         User,
         Rol,
@@ -60,7 +60,8 @@ import { Donation } from './donations/donation.entity';
         Report,
         Donation,
       ],
-      synchronize: true, // ⚠️ En desarrollo: true. En producción: false
+      synchronize: process.env.NODE_ENV !== 'production', // ⚠️ false en producción
+      logging: process.env.NODE_ENV !== 'production',
     }),
 
     // 🔹 Módulos PawFinder

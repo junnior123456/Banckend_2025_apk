@@ -21,6 +21,9 @@ export class CreatePetDto {
   isRisk?: boolean;
 
   @IsOptional()
+  riskTypes?: string[]; // ✅ NUEVO: Array de tipos de riesgo
+
+  @IsOptional()
   @IsString()
   address?: string;
 
