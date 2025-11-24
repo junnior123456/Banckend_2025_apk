@@ -22,15 +22,21 @@ El error `EADDRINUSE: address already in use 0.0.0.0:3000` ocurría porque múlt
 
 ## Configuración en Render Dashboard
 
+### IMPORTANTE: Usar archivo .render.yaml
+El proyecto incluye un archivo `.render.yaml` que Render detecta automáticamente.
+Si necesitas configurar manualmente:
+
 ### Paso 1: Build Command
 ```
-npm install && npm run build
+npm ci && npm run build
 ```
 
 ### Paso 2: Start Command
 ```
 npm run start:prod
 ```
+
+NOTA: Si Render no detecta el `.render.yaml`, asegúrate de configurar estos comandos manualmente en el dashboard.
 
 ### Paso 3: Variables de Entorno
 Configura estas variables en Render Dashboard:

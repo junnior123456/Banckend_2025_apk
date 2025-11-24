@@ -55,14 +55,22 @@ function killPort(port) {
 
 async function start() {
   const port = process.env.PORT || 3000;
+  const isProduction = process.env.NODE_ENV === 'production';
   
-  console.log('🔍 Verificando puerto...');
-  await killPort(port);
+  // Solo intentar matar procesos en desarrollo local
+  if (!isProduction) {
+    console.log('🔍 Verificando puerto...');
+    await killPort(port);
+  }
   
   console.log('🚀 Iniciando aplicación...');
+  console.log(`📂 Directorio actual: ${process.cwd()}`);
+  console.log(`📦 Puerto: ${port}`);
+  
   const app = spawn('node', ['dist/main.js'], {
     stdio: 'inherit',
-    env: process.env
+    env: process.env,
+    cwd: process.cwd()
   });
   
   app.on('error', (err) => {
