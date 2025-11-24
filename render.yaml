@@ -2,11 +2,11 @@ services:
   - type: web
     name: pawfinder-backend
     env: node
-    buildCommand: npm install && npm run build
+    buildCommand: npm ci && npm run build
     startCommand: npm run start:prod
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3000
-    healthCheckPath: /api
+    healthCheckPath: /api/health
