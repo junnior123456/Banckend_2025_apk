@@ -8,8 +8,12 @@ const fs = require('fs');
 
 // Determinar la ruta correcta del archivo main
 const possiblePaths = [
+  path.join(__dirname, 'dist', 'src', 'main.js'),
+  path.join(__dirname, 'dist', 'src', 'main'),
   path.join(__dirname, 'dist', 'main.js'),
   path.join(__dirname, 'dist', 'main'),
+  path.join(process.cwd(), 'dist', 'src', 'main.js'),
+  path.join(process.cwd(), 'dist', 'src', 'main'),
   path.join(process.cwd(), 'dist', 'main.js'),
   path.join(process.cwd(), 'dist', 'main'),
 ];
