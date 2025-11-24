@@ -3,7 +3,9 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log'],
+  });
 
   // Configurar UTF-8 para caracteres especiales
   app.use((req, res, next) => {
@@ -31,10 +33,16 @@ async function bootstrap() {
 
   // Escuchar en todas las interfaces para permitir conexiones desde emuladores
   const port = process.env.PORT || 3000;
-  await app.listen(port, '0.0.0.0');
-  console.log('🚀 Backend corriendo en http://0.0.0.0:3000');
-  console.log('🌐 Accesible desde emulador en http://10.0.2.2:3000');
-  console.log('🌐 Accesible desde red local en http://192.168.18.97:3000');
-
+  const host = '0.0.0.0';
+  
+  await app.listen(port, host);
+  
+  console.log(`🚀 Backend corriendo en http://${host}:${port}`);
+  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📦 Port: ${port}`);
 }
-bootstrap();
+
+bootstrap().catch((err) => {
+  console.error('❌ Error al iniciar la aplicación:', err);
+  process.exit(1);
+});
