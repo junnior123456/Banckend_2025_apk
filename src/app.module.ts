@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
-
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -19,6 +18,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ReportsModule } from './reports/reports.module';
 import { SearchModule } from './search/search.module';
 import { DonationsModule } from './donations/donations.module';
+import { AiModule } from './ai/ai.module'; // 🤖 Módulo de IA con Google Gemini
 
 // === Entidades PawFinder ===
 import { User } from './users/user.entity';
@@ -34,13 +34,15 @@ import { Donation } from './donations/donation.entity';
 
 @Module({
   imports: [
-    // 🔧 Configuración global de variables de entorno (.env)
-    ConfigModule.forRoot({ 
+    // 🔧 Configuración global de variables de entorno (.env y vars de Railway)
+    ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
     }),
 
-    // 💾 Conexión a base de datos (MySQL o PostgreSQL)
+    // 💾 Conexión a base de datos
+    // Si existiera DATABASE_URL (PostgreSQL en otra plataforma) la usa,
+    // si no, usa MySQL con las variables MYSQL_* (Railway).
     TypeOrmModule.forRoot(
       process.env.DATABASE_URL
         ? {
@@ -58,12 +60,18 @@ import { Donation } from './donations/donation.entity';
               Report,
               Donation,
             ],
-            synchronize: true,
+            // En producción NO sincronizamos el schema automáticamente
+            synchronize: false,
             logging: process.env.NODE_ENV !== 'production',
             ssl: { rejectUnauthorized: false },
+            extra: {
+              max: 10,
+              connectionTimeoutMillis: 10000,
+              idleTimeoutMillis: 30000,
+            },
           }
         : {
-            type: (process.env.DB_TYPE as any) || 'mysql',
+            type: 'mysql',
             host: process.env.MYSQL_HOST || process.env.DB_HOST || 'localhost',
             port: Number(process.env.MYSQL_PORT || process.env.DB_PORT || 3306),
             username: process.env.MYSQL_USER || process.env.DB_USER || 'root',
@@ -81,10 +89,10 @@ import { Donation } from './donations/donation.entity';
               Report,
               Donation,
             ],
-            synchronize: true,
+            // IMPORTANTE: como ya importaste el dump a Railway, desactivamos synchronize
+            synchronize: false,
             logging: process.env.NODE_ENV !== 'production',
-            ssl: process.env.DB_TYPE === 'postgres' ? { rejectUnauthorized: false } : false,
-          }
+          },
     ),
 
     // 🔹 Módulos PawFinder
@@ -100,13 +108,13 @@ import { Donation } from './donations/donation.entity';
     ReportsModule,
     SearchModule,
     DonationsModule,
+    AiModule,       // 🤖 IA: Recomendación de perros, cuidado y veterinarias en Tarapoto
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {
   constructor(private configService: ConfigService) {
-    // 🔥 Google Cloud Storage se inicializa automáticamente en cloud_storage.ts
     console.log('✅ AppModule inicializado correctamente');
   }
 }

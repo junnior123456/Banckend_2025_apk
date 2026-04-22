@@ -35,6 +35,7 @@ export class AdoptionService {
       relations: ['user'],
     });
 
+    
     if (!pet) {
       throw new NotFoundException('Mascota no encontrada');
     }
