@@ -60,8 +60,8 @@ import { Donation } from './donations/donation.entity';
               Report,
               Donation,
             ],
-            // En producción NO sincronizamos el schema automáticamente
-            synchronize: false,
+            // Sincronizar para crear tablas nuevas automáticamente
+            synchronize: true,
             logging: process.env.NODE_ENV !== 'production',
             ssl: { rejectUnauthorized: false },
             extra: {
@@ -89,8 +89,7 @@ import { Donation } from './donations/donation.entity';
               Report,
               Donation,
             ],
-            // IMPORTANTE: como ya importaste el dump a Railway, desactivamos synchronize
-            synchronize: false,
+            synchronize: true,
             logging: process.env.NODE_ENV !== 'production',
           },
     ),
