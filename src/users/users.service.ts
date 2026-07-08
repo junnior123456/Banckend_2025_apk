@@ -116,4 +116,28 @@ async create(user: CreateUserDto) {
       );
     }
   }
+
+  // 🔹 Cambiar el rol de un usuario (usado por el ADMIN para promover a VET).
+  //    roleId: '1'=ADMIN, '2'=CLIENT, '3'=VET. Reemplaza los roles actuales.
+  async setRole(userId: number, roleId: string) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['roles'],
+    });
+    if (!user) {
+      throw new HttpException('Usuario no encontrado', HttpStatus.NOT_FOUND);
+    }
+    const rolesToRemove = user.roles
+      .map((r) => r.id)
+      .filter((id) => id !== roleId);
+    await this.userRepository
+      .createQueryBuilder()
+      .relation(User, 'roles')
+      .of(userId)
+      .addAndRemove([roleId], rolesToRemove);
+    return this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['roles'],
+    });
+  }
 }

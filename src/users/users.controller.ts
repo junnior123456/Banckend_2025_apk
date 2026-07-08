@@ -5,13 +5,17 @@ import {
   Param,
   ParseFilePipe,
   ParseIntPipe,
+  Patch,
   Post,
   Put,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
   FileTypeValidator,
   MaxFileSizeValidator,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
@@ -75,5 +79,28 @@ export class UsersController {
     @Body() user: UpdateUserDto,
   ) {
     return this.userService.updateWithImage(file, id, user);
+  }
+
+  // 🔹 Cambiar el rol de un usuario — SOLO ADMIN.
+  //    Body: { "roleId": "3" }  (1=ADMIN, 2=CLIENT, 3=VET)
+  //    El JWT guarda los roles como IDs; '1' identifica al ADMIN.
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/role')
+  setRole(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { roleId: string },
+  ) {
+    const roles: string[] = req.user?.roles ?? [];
+    if (!roles.includes('1')) {
+      throw new HttpException(
+        'Solo el administrador puede cambiar roles',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+    if (!body?.roleId) {
+      throw new HttpException('Falta roleId', HttpStatus.BAD_REQUEST);
+    }
+    return this.userService.setRole(id, body.roleId);
   }
 }

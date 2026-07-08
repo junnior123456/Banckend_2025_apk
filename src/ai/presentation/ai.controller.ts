@@ -8,6 +8,8 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { GeminiService } from '../infrastructure/gemini.service';
 import { DogRecommendationDto } from '../application/dto/dog-recommendation.dto';
 import { AiChatDto, VetReferralDto } from '../application/dto/ai-chat.dto';
+import { AnalyzePhotoDto } from '../application/dto/analyze-photo.dto';
+import { PetMatchDto } from '../application/dto/pet-match.dto';
 import { AiChatType } from '../domain/entities/ai-chat.entity';
 
 @Controller('ai')
@@ -24,11 +26,15 @@ export class AiController {
     return {
       status: 'ok',
       service: 'PawBot - Asistente IA de PawFinder',
+      provider: 'GitHub Models (OpenAI-compatible)',
+      configured: !!process.env.GITHUB_TOKEN,
       features: [
         'Recomendación de perros para adoptar',
         'Seguimiento del cuidado del perro',
         'Referencia a veterinarias en Tarapoto',
         'Chat general sobre perros',
+        'Análisis de foto de perro (visión)',
+        'Match de mascotas por foto (visión)',
       ],
       location: 'Tarapoto, San Martín, Perú',
     };
@@ -125,6 +131,38 @@ export class AiController {
       success: true,
       type: dto.chatType || AiChatType.GENERAL,
       response,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * POST /api/ai/analyze-photo
+   * Clasifica/describe un perro a partir de su foto (visión)
+   * Body: AnalyzePhotoDto { imageUrl }
+   */
+  @Post('analyze-photo')
+  async analyzePhoto(@Request() req, @Body() dto: AnalyzePhotoDto) {
+    const analysis = await this.geminiService.classifyDogPhoto(dto.imageUrl);
+    return {
+      success: true,
+      type: 'PHOTO_ANALYSIS',
+      analysis,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * POST /api/ai/match-pets
+   * Compara la foto de un perro perdido con candidatos encontrados (visión)
+   * Body: PetMatchDto { lostImageUrl, candidates[] }
+   */
+  @Post('match-pets')
+  async matchPets(@Request() req, @Body() dto: PetMatchDto) {
+    const matches = await this.geminiService.matchPets(dto.lostImageUrl, dto.candidates);
+    return {
+      success: true,
+      type: 'PET_MATCH',
+      matches,
       timestamp: new Date().toISOString(),
     };
   }

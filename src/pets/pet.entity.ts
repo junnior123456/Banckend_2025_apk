@@ -87,6 +87,19 @@ export class Pet {
   @Column({ type: 'boolean', default: true })
   isActive: boolean; // Si la publicación está activa
 
+  // 📋 Módulo 3 — Expediente digital: identidad extendida
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  species: string; // Perro, Gato, etc.
+
+  @Column({ type: 'date', nullable: true })
+  birthDate: string; // Fecha de nacimiento
+
+  @Column({ type: 'varchar', length: 60, nullable: true })
+  microchip: string; // Número de microchip
+
+  @Column({ type: 'varchar', length: 32, nullable: true, unique: true })
+  publicUid: string; // Identificador público para el QR / ficha
+
   // 📋 Requisitos para adopción
   @Column({ type: 'boolean', default: false })
   requiresOwnHome: boolean; // Requiere casa propia
