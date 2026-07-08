@@ -33,13 +33,13 @@ export class DatabaseSeeder {
       await this.createPetImages();
 
       // Crear solicitudes de adopción
-      await this.createAdoptionRequests();
+      try { await this.createAdoptionRequests(); } catch (e) { console.warn("WARN: createAdoptionRequests demo omitido:", e.message); }
 
       // Crear comentarios
-      await this.createComments();
+      try { await this.createComments(); } catch (e) { console.warn("WARN: createComments demo omitido:", e.message); }
 
       // Crear notificaciones
-      await this.createNotifications();
+      try { await this.createNotifications(); } catch (e) { console.warn("WARN: createNotifications demo omitido:", e.message); }
 
       console.log('✅ Seeds completados exitosamente');
     } catch (error) {
@@ -52,14 +52,12 @@ export class DatabaseSeeder {
     console.log('🧹 Limpiando solo las nuevas tablas...');
     
     // Solo limpiar las nuevas entidades, mantener usuarios y roles existentes
-    await this.dataSource.query('SET FOREIGN_KEY_CHECKS = 0');
     
     await this.dataSource.getRepository(Notification).delete({});
     await this.dataSource.getRepository(Comment).delete({});
     await this.dataSource.getRepository(AdoptionRequest).delete({});
     await this.dataSource.getRepository(PetImage).delete({});
     
-    await this.dataSource.query('SET FOREIGN_KEY_CHECKS = 1');
   }
 
   private async ensureRolesExist() {
@@ -369,6 +367,7 @@ export class DatabaseSeeder {
     ];
 
     for (const imageData of images) {
+      if (!imageData.petId) continue; // omitir imagenes de mascotas no sembradas
       const image = petImageRepository.create(imageData);
       await petImageRepository.save(image);
     }

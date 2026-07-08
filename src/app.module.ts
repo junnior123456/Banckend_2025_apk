@@ -63,7 +63,7 @@ import { Donation } from './donations/donation.entity';
             // Sincronizar para crear tablas nuevas automáticamente
             synchronize: true,
             logging: process.env.NODE_ENV !== 'production',
-            ssl: { rejectUnauthorized: false },
+            ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
             extra: {
               max: 10,
               connectionTimeoutMillis: 10000,

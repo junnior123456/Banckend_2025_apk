@@ -65,13 +65,13 @@ export class User {
   resetPasswordExpires: Date;
 
   @Column({
-    type: 'datetime',
+    type: 'timestamp',
     default: () => 'CURRENT_TIMESTAMP',
   })
   created_at: Date;
 
   @Column({
-    type: 'datetime',
+    type: 'timestamp',
     default: () => 'CURRENT_TIMESTAMP',
     onUpdate: 'CURRENT_TIMESTAMP',
   })

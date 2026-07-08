@@ -12,7 +12,8 @@ import { Report } from '../reports/report.entity';
 
 // Configuración de la base de datos
 const AppDataSource = new DataSource({
-  type: 'mysql',
+  type: 'postgres',
+  url: process.env.DATABASE_URL,
   host: process.env.DB_HOST || 'localhost',
   port: Number(process.env.DB_PORT || 3306),
   username: process.env.DB_USER || 'root',
