@@ -1,117 +1,84 @@
-import { Storage } from '@google-cloud/storage';
+import * as fs from 'fs';
+import * as path from 'path';
 
 /**
- * Configuración de Google Cloud Storage para Firebase
- * Proyecto: PawFinder (ID: pawfinder-4b099)
- * Implementación exacta del profesor con Firebase Storage moderno
+ * Almacenamiento de imágenes en el propio servidor (disco local),
+ * servidas por nginx en /uploads/. Reemplaza a Firebase Storage
+ * (el proyecto no tiene billing/Blaze activo). Misma firma pública
+ * `storage(file, filename)` para no tocar el resto del código.
  */
 
-// Firebase Storage bucket (formato moderno de Firebase)
-const bucketName = 'pawfinder-4b099.firebasestorage.app';
+// Carpeta física donde se guardan las imágenes (persistente, fuera del build)
+const UPLOAD_DIR = process.env.UPLOADS_DIR || '/var/pawfinder/uploads';
 
-// Inicializar Google Cloud Storage
-let googleCloudStorage: Storage | null = null;
+// Base pública de las URLs (nginx: location /uploads/ -> UPLOAD_DIR)
+const PUBLIC_BASE = (
+  process.env.PUBLIC_UPLOADS_URL || 'http://167.99.4.161/uploads'
+).replace(/\/+$/, '');
 
+// Asegurar la carpeta base al arrancar
 try {
-  googleCloudStorage = new Storage({
-    projectId: 'pawfinder-4b099',
-    keyFilename: './serviceAccountKey.json',
-  });
-  console.log('✅ Google Cloud Storage inicializado correctamente');
-  console.log('📦 Bucket configurado:', bucketName);
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  console.log('✅ Almacenamiento local de imágenes listo en:', UPLOAD_DIR);
+  console.log('🔗 URL pública base:', PUBLIC_BASE);
 } catch (error) {
-  console.error('❌ Error inicializando Google Cloud Storage:', error.message);
-  console.warn('🔄 Usando modo mock para desarrollo');
-  googleCloudStorage = null;
+  console.error('❌ No se pudo preparar UPLOAD_DIR:', (error as Error).message);
+}
+
+function extFromMime(mime?: string): string {
+  switch (mime) {
+    case 'image/jpeg':
+    case 'image/jpg':
+      return '.jpg';
+    case 'image/png':
+      return '.png';
+    case 'image/webp':
+      return '.webp';
+    case 'image/gif':
+      return '.gif';
+    default:
+      return '';
+  }
 }
 
 /**
- * 🔸 Sube un archivo a Google Cloud Storage (Firebase Storage)
- * Implementación EXACTA del profesor - SIMPLIFICADA
+ * 🔸 Guarda un archivo en el disco del servidor y devuelve su URL pública.
+ * @param file  archivo de multer (buffer, mimetype, originalname, size)
+ * @param filename  nombre sugerido (puede incluir carpeta, p.ej. "pets/123_foto.jpg")
  */
 export const storage = async (
   file: Express.Multer.File,
   filename: string,
 ): Promise<string> => {
-  try {
-    if (!file) {
-      throw new Error('No se recibió ningún archivo.');
-    }
-
-    console.log(`📤 Subiendo archivo: ${filename}`);
-    console.log(`📊 Tamaño: ${file.size} bytes`);
-    console.log(`📋 Tipo MIME: ${file.mimetype}`);
-
-    // Si Google Cloud Storage no está disponible, usar modo mock
-    if (!googleCloudStorage) {
-      console.warn('⚠️ Google Cloud Storage no disponible, usando modo mock');
-      const mockUrl = `https://picsum.photos/400/300?random=${Date.now()}`;
-      console.log('✅ URL mock generada:', mockUrl);
-      return mockUrl;
-    }
-
-    // Obtener referencia al bucket
-    const bucket = googleCloudStorage.bucket(bucketName);
-    
-    // Crear nombre único para el archivo (sin caracteres especiales)
-    const cleanFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const uniqueFilename = `images/${Date.now()}_${cleanFilename}`;
-    const fileRef = bucket.file(uniqueFilename);
-
-    // Crear stream de escritura (EXACTO como el profesor)
-    const stream = fileRef.createWriteStream({
-      metadata: {
-        contentType: file.mimetype,
-      },
-      public: true, // Hacer el archivo público automáticamente
-    });
-
-    return new Promise((resolve, reject) => {
-      stream.on('error', (error) => {
-        console.error('❌ Error subiendo archivo a Google Cloud Storage:', error);
-        
-        // Fallback a URL mock en caso de error
-        const mockUrl = `https://picsum.photos/400/300?random=${Date.now()}`;
-        console.log('🔄 Usando URL mock como fallback:', mockUrl);
-        resolve(mockUrl);
-      });
-
-      stream.on('finish', async () => {
-        try {
-          // Generar URL pública (formato Firebase Storage)
-          const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(uniqueFilename)}?alt=media`;
-          
-          console.log('✅ Archivo subido correctamente a Firebase Storage');
-          console.log('🔗 URL pública:', publicUrl);
-          resolve(publicUrl);
-        } catch (error) {
-          console.error('❌ Error generando URL pública:', error);
-          
-          // Fallback a URL mock
-          const mockUrl = `https://picsum.photos/400/300?random=${Date.now()}`;
-          console.log('🔄 Usando URL mock como fallback:', mockUrl);
-          resolve(mockUrl);
-        }
-      });
-
-      // Escribir el buffer del archivo al stream
-      stream.end(file.buffer);
-    });
-
-  } catch (error) {
-    console.error('❌ Error en storage function:', error);
-    
-    // Fallback a URL mock en caso de cualquier error
-    const mockUrl = `https://picsum.photos/400/300?random=${Date.now()}`;
-    console.log('🔄 Usando URL mock como fallback:', mockUrl);
-    return mockUrl;
+  if (!file || !file.buffer) {
+    throw new Error('No se recibió ningún archivo.');
   }
+
+  console.log(`📤 Guardando imagen: ${filename}`);
+  console.log(`📊 Tamaño: ${file.size} bytes · 📋 MIME: ${file.mimetype}`);
+
+  // Limpiar el nombre (colapsa carpetas/caracteres raros a "_")
+  const clean = String(filename).replace(/[^a-zA-Z0-9._-]/g, '_');
+  let finalName = `${Date.now()}_${clean}`;
+  if (!path.extname(finalName)) {
+    finalName += extFromMime(file.mimetype);
+  }
+
+  const relPath = `images/${finalName}`;
+  const absPath = path.join(UPLOAD_DIR, relPath);
+
+  await fs.promises.mkdir(path.dirname(absPath), { recursive: true });
+  await fs.promises.writeFile(absPath, file.buffer);
+
+  const publicUrl = `${PUBLIC_BASE}/${relPath}`;
+  console.log('✅ Imagen guardada en el servidor:', publicUrl);
+  return publicUrl;
 };
 
-// Función auxiliar para mantener compatibilidad
+// Compatibilidad con nombres antiguos
 export const uploadToFirebase = storage;
 
-// Compatibilidad: subir desde un objeto que contiene `buffer`, `mimetype` y `originalname`
+// Compatibilidad: subir desde un objeto { buffer, mimetype, originalname }
 export const uploadBufferToFirebase = async (
   fileObj: { buffer: Buffer; mimetype: string; originalname: string },
   prefix: string,
@@ -123,4 +90,19 @@ export const uploadBufferToFirebase = async (
     size: fileObj.buffer ? fileObj.buffer.length : 0,
   };
   return storage(fileLike, `${prefix}${fileObj.originalname}`);
+};
+
+/**
+ * Elimina una imagen guardada localmente (best-effort).
+ */
+export const deleteFromStorage = async (imageUrl: string): Promise<boolean> => {
+  try {
+    if (!imageUrl || !imageUrl.startsWith(PUBLIC_BASE)) return true;
+    const rel = imageUrl.slice(PUBLIC_BASE.length).replace(/^\/+/, '');
+    const abs = path.join(UPLOAD_DIR, rel);
+    await fs.promises.unlink(abs).catch(() => undefined);
+    return true;
+  } catch {
+    return false;
+  }
 };
