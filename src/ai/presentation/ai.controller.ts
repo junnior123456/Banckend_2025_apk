@@ -10,12 +10,17 @@ import { DogRecommendationDto } from '../application/dto/dog-recommendation.dto'
 import { AiChatDto, VetReferralDto } from '../application/dto/ai-chat.dto';
 import { AnalyzePhotoDto } from '../application/dto/analyze-photo.dto';
 import { PetMatchDto } from '../application/dto/pet-match.dto';
+import { PetChatDto } from '../application/dto/pet-chat.dto';
 import { AiChatType } from '../domain/entities/ai-chat.entity';
+import { PetContextService } from '../../pets/pet-context.service';
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard) // Todos los endpoints requieren autenticación
 export class AiController {
-  constructor(private readonly geminiService: GeminiService) {}
+  constructor(
+    private readonly geminiService: GeminiService,
+    private readonly petContextService: PetContextService,
+  ) {}
 
   /**
    * GET /api/ai/status
@@ -163,6 +168,41 @@ export class AiController {
       success: true,
       type: 'PET_MATCH',
       matches,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * POST /api/ai/pet-chat
+   * Chat contextual sobre una mascota. El expediente sólo se pasa al modelo si
+   * el dueño activó `aiConsent`; si no, responde genérico y pide activarlo.
+   * Body: PetChatDto { petId, message }
+   *
+   * OJO: la estrategia JWT expone `userId` (no `id`) — ver src/auth/jwt/jwt.strategy.ts
+   */
+  @Post('pet-chat')
+  async petChat(@Request() req, @Body() dto: PetChatDto) {
+    const userId = req.user.userId;
+    const roles = req.user.roles;
+
+    // Lanza 404 si no existe y 403 si no es dueño ni ADMIN/VET.
+    const ctx = await this.petContextService.buildContext(dto.petId, userId, roles);
+
+    const response = await this.geminiService.petChat(
+      userId,
+      dto.message,
+      ctx.petName,
+      ctx.contextText,
+    );
+
+    return {
+      success: true,
+      type: 'PET_CHAT',
+      petId: ctx.petId,
+      petName: ctx.petName,
+      usedRecord: ctx.consent,
+      consentRequired: !ctx.consent,
+      response,
       timestamp: new Date().toISOString(),
     };
   }

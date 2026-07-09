@@ -230,6 +230,69 @@ export class GeminiService implements IAiService {
     return await this.generateResponse(prompt);
   }
 
+  /**
+   * Chat contextual sobre UNA mascota del usuario.
+   * Si `contextText` es null (sin consentimiento), responde genérico y jamás
+   * inventa datos médicos: se le prohíbe explícitamente en el system prompt.
+   */
+  async petChat(
+    userId: number,
+    message: string,
+    petName: string,
+    contextText: string | null,
+  ): Promise<string> {
+    const system = contextText
+      ? `${this.BASE_CONTEXT}
+
+        Tienes acceso al expediente digital de "${petName}" porque su dueño dio
+        consentimiento explícito. Úsalo para responder de forma personalizada.
+
+        ${contextText}
+
+        REGLAS:
+        - Basa tus respuestas ÚNICAMENTE en lo que aparece literalmente arriba.
+          Cita los datos concretos (fechas, pesos, nombres de vacunas, dosis).
+        - El expediente es COMPLETO: lo que no aparece arriba, NO EXISTE. Si te
+          preguntan por un dato ausente, responde exactamente que no hay registro
+          de eso en el expediente, y nada más. Está TERMINANTEMENTE PROHIBIDO
+          insinuar que existe información parcial, decir que "se menciona" algo que
+          no está escrito arriba, o suponer que un procedimiento ya se hizo.
+          Ejemplo de respuesta PROHIBIDA: "no está la fecha exacta, solo se menciona
+          que fue desparasitado recientemente" cuando no hay sección de
+          desparasitación. La respuesta correcta es: "No hay ningún registro de
+          desparasitación en el expediente de ${petName}."
+        - Señala riesgos que veas: vacunas vencidas, pérdida o ganancia brusca de
+          peso, interacción entre una medicación activa y una alergia registrada.
+        - NO das diagnósticos. Ante cualquier síntoma serio, deriva al veterinario.`
+      : `${this.BASE_CONTEXT}
+
+        El dueño NO ha dado consentimiento para que leas el expediente de "${petName}",
+        así que NO tienes ningún dato médico de esta mascota.
+
+        REGLAS:
+        - Responde de forma general y útil, sin inventar datos de "${petName}".
+        - NUNCA afirmes conocer su peso, vacunas, alergias o medicación.
+        - Si la pregunta requiere el expediente, dilo con naturalidad y sugiere
+          activar el acceso al expediente desde la ficha de la mascota.`;
+
+    try {
+      return await this.callModel(
+        [
+          { role: 'system', content: system },
+          { role: 'user', content: message },
+        ],
+        900,
+        0.3, // baja: el chat del expediente debe ceñirse a los datos, no ser creativo
+      );
+    } catch (error: any) {
+      this.logger.error('❌ Error en petChat:', error);
+      if (String(error?.message || '').includes('API_KEY')) {
+        return '⚠️ El servicio de IA no está disponible en este momento. Por favor, contacta al soporte de PawFinder.';
+      }
+      return '😔 Lo siento, tuve un problema al procesar tu consulta. Por favor, intenta de nuevo en unos momentos.';
+    }
+  }
+
   // ============================================================
   //  FEATURES DE VISIÓN (nuevas)
   // ============================================================

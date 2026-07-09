@@ -35,6 +35,18 @@ export interface IAiService {
    * y devuelve un ranking de similitud
    */
   matchPets(lostImageUrl: string, candidates: PetMatchCandidate[]): Promise<PetMatchResult[]>;
+
+  /**
+   * Chat contextual sobre una mascota concreta.
+   * `contextText` es el expediente serializado y SÓLO debe pasarse si el dueño
+   * dio consentimiento; si es null, el modelo responde de forma genérica.
+   */
+  petChat(
+    userId: number,
+    message: string,
+    petName: string,
+    contextText: string | null,
+  ): Promise<string>;
 }
 
 /**

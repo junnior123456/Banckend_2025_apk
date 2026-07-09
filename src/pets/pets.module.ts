@@ -19,6 +19,8 @@ import { MedicationsController } from './medications.controller';
 import { PetProfileService } from './pet-profile.service';
 import { PetProfileController } from './pet-profile.controller';
 import { PublicPetController } from './public-pet.controller';
+import { PetContextService } from './pet-context.service';
+import { PetAiConsentController } from './pet-ai-consent.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
@@ -41,6 +43,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     MedicationsController,
     PetProfileController,
     PublicPetController,
+    PetAiConsentController,
   ],
   providers: [
     PetsService,
@@ -49,7 +52,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
     AllergiesService,
     MedicationsService,
     PetProfileService,
+    PetContextService,
   ],
-  exports: [PetsService],
+  exports: [PetsService, PetContextService],
 })
 export class PetsModule {}
