@@ -71,9 +71,16 @@ export class UsersController {
     return this.userService.findById(id);
   }
 
-  // 🔹 Crear usuario
+  // 🔹 Crear usuario (solo ADMIN; el registro público es POST /auth/register).
+  @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() user: CreateUserDto) {
+  create(@Body() user: CreateUserDto, @Req() req: any) {
+    if (!this.isAdmin(req)) {
+      throw new HttpException(
+        'Solo un administrador puede crear usuarios por esta vía',
+        HttpStatus.FORBIDDEN,
+      );
+    }
     return this.userService.create(user);
   }
 

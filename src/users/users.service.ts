@@ -17,7 +17,8 @@ export class UsersService {
 // 🔹 Crear usuario con rol por defecto
 async create(user: CreateUserDto) {
   try {
-    // Crear usuario
+    // El password lo hashea el hook @BeforeInsert de la entidad User
+    // (NO hashear aquí: sería doble hash y el login fallaría).
     const newUser = this.userRepository.create(user);
     const savedUser = await this.userRepository.save(newUser);
 
