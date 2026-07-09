@@ -25,6 +25,9 @@ import { MedicalRecordsController } from './medical-records.controller';
 import { PetDocument } from './pet-document.entity';
 import { DocumentsService } from './documents.service';
 import { DocumentsController } from './documents.controller';
+import { VaccineReminderLog } from './vaccine-reminder.entity';
+import { VaccinationRemindersService } from './vaccination-reminders.service';
+import { VaccinationRemindersController } from './vaccination-reminders.controller';
 import { PetContextService } from './pet-context.service';
 import { PetAiConsentController } from './pet-ai-consent.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -40,6 +43,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       PetMedication,
       PetMedicalRecord,
       PetDocument,
+      VaccineReminderLog,
     ]),
     forwardRef(() => NotificationsModule),
   ],
@@ -54,6 +58,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     PetAiConsentController,
     MedicalRecordsController,
     DocumentsController,
+    VaccinationRemindersController,
   ],
   providers: [
     PetsService,
@@ -65,6 +70,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     PetContextService,
     MedicalRecordsService,
     DocumentsService,
+    VaccinationRemindersService,
   ],
   exports: [PetsService, PetContextService],
 })

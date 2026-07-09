@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { AppController } from './app.controller';
@@ -32,6 +33,7 @@ import { PetAllergy } from './pets/pet-allergy.entity';
 import { PetMedication } from './pets/pet-medication.entity';
 import { PetMedicalRecord } from './pets/pet-medical-record.entity';
 import { PetDocument } from './pets/pet-document.entity';
+import { VaccineReminderLog } from './pets/vaccine-reminder.entity';
 import { AdoptionRequest } from './adoption/adoption-request.entity';
 import { Comment } from './comments/comment.entity';
 import { Notification } from './notifications/notification.entity';
@@ -45,6 +47,9 @@ import { Donation } from './donations/donation.entity';
       isGlobal: true,
       envFilePath: '.env',
     }),
+
+    // ⏰ Tareas programadas (recordatorios de vacunas). Sin esto el @Cron no corre.
+    ScheduleModule.forRoot(),
 
     // 💾 Conexión a base de datos
     // Si existiera DATABASE_URL (PostgreSQL en otra plataforma) la usa,
@@ -71,6 +76,7 @@ import { Donation } from './donations/donation.entity';
               PetMedication,
               PetMedicalRecord,
               PetDocument,
+              VaccineReminderLog,
             ],
             // Sincronizar para crear tablas nuevas automáticamente
             synchronize: true,
@@ -106,6 +112,7 @@ import { Donation } from './donations/donation.entity';
               PetMedication,
               PetMedicalRecord,
               PetDocument,
+              VaccineReminderLog,
             ],
             synchronize: true,
             logging: process.env.NODE_ENV !== 'production',
