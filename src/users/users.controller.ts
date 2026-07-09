@@ -30,19 +30,44 @@ import { JwtRolesGuard } from 'src/auth/jwt/jwt-roles.guard';
 export class UsersController {
   constructor(private readonly userService: UsersService) {}
 
-  // 🔹 Listar todos los usuarios
-  //@HasRoles(JwtRole.CLIENT)
-  //@UseGuards(JwtAuthGuard, JwtRolesGuard)
+  /**
+   * El JWT guarda los roles como IDs ('1'=ADMIN, '2'=CLIENT, '3'=VET) — por eso
+   * `JwtRolesGuard` (que compara nombres) nunca casaba y los guards acabaron
+   * comentados, dejando estos endpoints ABIERTOS. Se comprueba a mano.
+   */
+  private isAdmin(req: any): boolean {
+    const roles: string[] = req.user?.roles ?? [];
+    return roles.includes('1');
+  }
+
+  /** Sólo el propio usuario o un administrador. */
+  private assertSelfOrAdmin(req: any, id: number) {
+    if (this.isAdmin(req)) return;
+    if (Number(req.user?.userId) === Number(id)) return;
+    throw new HttpException(
+      'No autorizado sobre este usuario',
+      HttpStatus.FORBIDDEN,
+    );
+  }
+
+  // 🔹 Listar todos los usuarios — SOLO ADMIN
+  @UseGuards(JwtAuthGuard)
   @Get()
-  findAll() {
+  findAll(@Req() req: any) {
+    if (!this.isAdmin(req)) {
+      throw new HttpException(
+        'Solo el administrador puede listar usuarios',
+        HttpStatus.FORBIDDEN,
+      );
+    }
     return this.userService.findAll();
   }
 
-  // 🔹 Buscar usuario por ID
-  //@HasRoles(JwtRole.CLIENT)
-  //@UseGuards(JwtAuthGuard, JwtRolesGuard)
+  // 🔹 Buscar usuario por ID — el propio usuario o un ADMIN
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  findOne(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+    this.assertSelfOrAdmin(req, id);
     return this.userService.findById(id);
   }
 
@@ -52,20 +77,24 @@ export class UsersController {
     return this.userService.create(user);
   }
 
-  // 🔹 Actualizar usuario sin imagen
-  //@HasRoles(JwtRole.CLIENT)
-  //@UseGuards(JwtAuthGuard, JwtRolesGuard)
+  // 🔹 Actualizar usuario sin imagen — el propio usuario o un ADMIN
+  @UseGuards(JwtAuthGuard)
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() user: UpdateUserDto) {
+  update(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() user: UpdateUserDto,
+  ) {
+    this.assertSelfOrAdmin(req, id);
     return this.userService.update(id, user);
   }
 
-  // 🔹 Actualizar usuario con imagen (Firebase)
-  //@HasRoles(JwtRole.CLIENT)
-  //@UseGuards(JwtAuthGuard, JwtRolesGuard)
+  // 🔹 Actualizar usuario con imagen — el propio usuario o un ADMIN
+  @UseGuards(JwtAuthGuard)
   @Put('upload/:id')
   @UseInterceptors(FileInterceptor('file'))
   updateWithImage(
+    @Req() req: any,
     @UploadedFile(
       new ParseFilePipe({
         validators: [
@@ -78,6 +107,7 @@ export class UsersController {
     @Param('id', ParseIntPipe) id: number,
     @Body() user: UpdateUserDto,
   ) {
+    this.assertSelfOrAdmin(req, id);
     return this.userService.updateWithImage(file, id, user);
   }
 
