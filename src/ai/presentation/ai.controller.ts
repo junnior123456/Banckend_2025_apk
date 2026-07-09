@@ -52,7 +52,7 @@ export class AiController {
    */
   @Post('recommend-dog')
   async recommendDog(@Request() req, @Body() dto: DogRecommendationDto) {
-    const userId = req.user.id;
+    const userId = req.user.userId; // la estrategia JWT expone userId, no id
     const response = await this.geminiService.recommendDog(userId, dto);
     return {
       success: true,
@@ -69,7 +69,7 @@ export class AiController {
    */
   @Post('care-tracking')
   async trackCare(@Request() req, @Body() dto: AiChatDto) {
-    const userId = req.user.id;
+    const userId = req.user.userId; // la estrategia JWT expone userId, no id
 
     // Construir contexto del perro si se proporcionó
     const dogContext = dto.dogName || dto.dogBreed || dto.dogAge || dto.dogWeight
@@ -97,7 +97,7 @@ export class AiController {
    */
   @Post('vet-referral')
   async vetReferral(@Request() req, @Body() dto: VetReferralDto) {
-    const userId = req.user.id;
+    const userId = req.user.userId; // la estrategia JWT expone userId, no id
     const response = await this.geminiService.referToVet(userId, dto.concern);
     return {
       success: true,
@@ -114,7 +114,7 @@ export class AiController {
    */
   @Post('chat')
   async chat(@Request() req, @Body() dto: AiChatDto) {
-    const userId = req.user.id;
+    const userId = req.user.userId; // la estrategia JWT expone userId, no id
     let response: string;
 
     // Enrutar según el tipo de chat

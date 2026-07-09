@@ -22,9 +22,10 @@ import { AiConsentDto } from './dto/ai-consent.dto';
 export class PetAiConsentController {
   constructor(private readonly contextService: PetContextService) {}
 
+  // OJO: la estrategia JWT expone `userId` (no `id`) — src/auth/jwt/jwt.strategy.ts
   @Get(':id/ai-consent')
   get(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
-    return this.contextService.getConsent(id, req.user.id, req.user.roles);
+    return this.contextService.getConsent(id, req.user.userId, req.user.roles);
   }
 
   @Patch(':id/ai-consent')
@@ -36,7 +37,7 @@ export class PetAiConsentController {
     return this.contextService.setConsent(
       id,
       dto.enabled,
-      req.user.id,
+      req.user.userId,
       req.user.roles,
     );
   }
