@@ -31,6 +31,7 @@ import { PetWeight } from './pets/pet-weight.entity';
 import { PetAllergy } from './pets/pet-allergy.entity';
 import { PetMedication } from './pets/pet-medication.entity';
 import { PetMedicalRecord } from './pets/pet-medical-record.entity';
+import { PetDocument } from './pets/pet-document.entity';
 import { AdoptionRequest } from './adoption/adoption-request.entity';
 import { Comment } from './comments/comment.entity';
 import { Notification } from './notifications/notification.entity';
@@ -69,6 +70,7 @@ import { Donation } from './donations/donation.entity';
               PetAllergy,
               PetMedication,
               PetMedicalRecord,
+              PetDocument,
             ],
             // Sincronizar para crear tablas nuevas automáticamente
             synchronize: true,
@@ -103,6 +105,7 @@ import { Donation } from './donations/donation.entity';
               PetAllergy,
               PetMedication,
               PetMedicalRecord,
+              PetDocument,
             ],
             synchronize: true,
             logging: process.env.NODE_ENV !== 'production',

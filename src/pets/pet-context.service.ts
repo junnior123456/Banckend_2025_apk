@@ -7,6 +7,7 @@ import { PetWeight } from './pet-weight.entity';
 import { PetAllergy } from './pet-allergy.entity';
 import { PetMedication } from './pet-medication.entity';
 import { PetMedicalRecord } from './pet-medical-record.entity';
+import { PetDocument } from './pet-document.entity';
 
 /**
  * Módulo 3 — Contexto del expediente para la IA.
@@ -41,6 +42,8 @@ export class PetContextService {
     private readonly medRepo: Repository<PetMedication>,
     @InjectRepository(PetMedicalRecord)
     private readonly recordRepo: Repository<PetMedicalRecord>,
+    @InjectRepository(PetDocument)
+    private readonly docRepo: Repository<PetDocument>,
   ) {}
 
   private async assertAccess(petId: number, userId: number, roles: string[]) {
@@ -122,13 +125,15 @@ export class PetContextService {
       };
     }
 
-    const [vaccinations, weights, allergies, medications, records] = await Promise.all([
-      this.vaccRepo.find({ where: { petId }, order: { appliedAt: 'DESC' }, take: 20 }),
-      this.weightRepo.find({ where: { petId }, order: { measuredAt: 'DESC' }, take: 12 }),
-      this.allergyRepo.find({ where: { petId } }),
-      this.medRepo.find({ where: { petId }, order: { startAt: 'DESC' }, take: 20 }),
-      this.recordRepo.find({ where: { petId }, order: { occurredAt: 'DESC' }, take: 20 }),
-    ]);
+    const [vaccinations, weights, allergies, medications, records, documents] =
+      await Promise.all([
+        this.vaccRepo.find({ where: { petId }, order: { appliedAt: 'DESC' }, take: 20 }),
+        this.weightRepo.find({ where: { petId }, order: { measuredAt: 'DESC' }, take: 12 }),
+        this.allergyRepo.find({ where: { petId } }),
+        this.medRepo.find({ where: { petId }, order: { startAt: 'DESC' }, take: 20 }),
+        this.recordRepo.find({ where: { petId }, order: { occurredAt: 'DESC' }, take: 20 }),
+        this.docRepo.find({ where: { petId }, order: { createdAt: 'DESC' }, take: 20 }),
+      ]);
 
     const lines: string[] = [];
 
@@ -198,14 +203,30 @@ export class PetContextService {
     }
 
     lines.push('');
+    lines.push(`--- DOCUMENTOS ADJUNTOS (${documents.length}) ---`);
+    if (!documents.length) lines.push('Sin documentos adjuntos.');
+    for (const d of documents) {
+      const fecha = new Date(d.createdAt).toISOString().slice(0, 10);
+      lines.push(`- [${d.category}] "${d.title}" (${d.mimeType}, subido el ${fecha})`);
+    }
+    if (documents.length) {
+      lines.push(
+        'IMPORTANTE: de los documentos sólo conoces el título y la categoría. ' +
+          'NO puedes leer su contenido: no interpretes radiografías ni resultados ' +
+          'de laboratorio a partir de esta lista.',
+      );
+    }
+
+    lines.push('');
     lines.push(`Fecha de hoy: ${today}`);
     lines.push('=== FIN DEL EXPEDIENTE ===');
     lines.push(
       'El expediente contiene ÚNICAMENTE las secciones anteriores: identidad, ' +
-        'vacunas, peso, alergias, medicación e historia clínica. NO existe ' +
-        'registro de ningún otro tema (documentos, radiografías, dieta, análisis ' +
-        'de laboratorio que no aparezcan arriba). Si te preguntan por algo que no ' +
-        'está escrito arriba, la respuesta correcta es que no hay registro en el ' +
+        'vacunas, peso, alergias, medicación, historia clínica y la lista de ' +
+        'documentos adjuntos. NO existe registro de ningún otro tema (dieta, ' +
+        'resultados de laboratorio, hallazgos de radiografías, o cualquier dato ' +
+        'que no aparezca escrito arriba). Si te preguntan por algo que no está ' +
+        'escrito arriba, la respuesta correcta es que no hay registro en el ' +
         'expediente.',
     );
 
