@@ -14,7 +14,9 @@ import {
   DogPhotoAnalysis,
   PetMatchCandidate,
   PetMatchResult,
+  ChatTurn,
 } from '../domain/interfaces/ai-service.interface';
+import { MAX_HISTORY_TURNS } from '../application/dto/chat-turn.dto';
 
 @Injectable()
 export class GeminiService implements IAiService {
@@ -215,19 +217,41 @@ export class GeminiService implements IAiService {
     return await this.generateResponse(prompt);
   }
 
-  async generalChat(userId: number, message: string): Promise<string> {
-    const prompt = `
+  async generalChat(
+    userId: number,
+    message: string,
+    history: ChatTurn[] = [],
+  ): Promise<string> {
+    const system = `
       ${this.BASE_CONTEXT}
 
-      TAREA: Responder consulta general sobre perros.
+      TAREA: Responder consultas generales sobre perros.
 
-      Mensaje del usuario: "${message}"
-
-      Responde de forma amigable, informativa y práctica.
+      Estás en medio de una conversación: NO vuelvas a saludar ni a presentarte si
+      ya hay mensajes previos. Continúa el hilo con naturalidad.
       Si la pregunta no es sobre perros, redirige amablemente al tema de mascotas.
-      Considera siempre el contexto de Tarapoto, San Martín, Perú.
     `;
-    return await this.generateResponse(prompt);
+    try {
+      return await this.callModel([
+        { role: 'system', content: system },
+        ...this.trimHistory(history),
+        { role: 'user', content: message },
+      ]);
+    } catch (error: any) {
+      this.logger.error('❌ Error en generalChat:', error);
+      if (String(error?.message || '').includes('API_KEY')) {
+        return '⚠️ El servicio de IA no está disponible en este momento. Por favor, contacta al soporte de PawFinder.';
+      }
+      return '😔 Lo siento, tuve un problema al procesar tu consulta. Por favor, intenta de nuevo en unos momentos.';
+    }
+  }
+
+  /** Conserva sólo los últimos turnos y descarta contenido vacío. */
+  private trimHistory(history: ChatTurn[] = []): ChatTurn[] {
+    return (history || [])
+      .filter((t) => t && t.content && t.content.trim().length > 0)
+      .slice(-MAX_HISTORY_TURNS)
+      .map((t) => ({ role: t.role, content: t.content }));
   }
 
   /**
@@ -240,6 +264,7 @@ export class GeminiService implements IAiService {
     message: string,
     petName: string,
     contextText: string | null,
+    history: ChatTurn[] = [],
   ): Promise<string> {
     const system = contextText
       ? `${this.BASE_CONTEXT}
@@ -263,7 +288,9 @@ export class GeminiService implements IAiService {
           desparasitación en el expediente de ${petName}."
         - Señala riesgos que veas: vacunas vencidas, pérdida o ganancia brusca de
           peso, interacción entre una medicación activa y una alergia registrada.
-        - NO das diagnósticos. Ante cualquier síntoma serio, deriva al veterinario.`
+        - NO das diagnósticos. Ante cualquier síntoma serio, deriva al veterinario.
+        - Estás en medio de una conversación: NO vuelvas a saludar ni a presentarte
+          si ya hay mensajes previos. Continúa el hilo.`
       : `${this.BASE_CONTEXT}
 
         El dueño NO ha dado consentimiento para que leas el expediente de "${petName}",
@@ -273,12 +300,15 @@ export class GeminiService implements IAiService {
         - Responde de forma general y útil, sin inventar datos de "${petName}".
         - NUNCA afirmes conocer su peso, vacunas, alergias o medicación.
         - Si la pregunta requiere el expediente, dilo con naturalidad y sugiere
-          activar el acceso al expediente desde la ficha de la mascota.`;
+          activar el acceso al expediente desde la ficha de la mascota.
+        - Estás en medio de una conversación: NO vuelvas a saludar ni a presentarte
+          si ya hay mensajes previos. Continúa el hilo.`;
 
     try {
       return await this.callModel(
         [
           { role: 'system', content: system },
+          ...this.trimHistory(history),
           { role: 'user', content: message },
         ],
         900,

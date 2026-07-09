@@ -23,7 +23,7 @@ export interface IAiService {
   /**
    * Chat general sobre perros
    */
-  generalChat(userId: number, message: string): Promise<string>;
+  generalChat(userId: number, message: string, history?: ChatTurn[]): Promise<string>;
 
   /**
    * Clasifica/describe un perro a partir de su foto (visión)
@@ -46,7 +46,14 @@ export interface IAiService {
     message: string,
     petName: string,
     contextText: string | null,
+    history?: ChatTurn[],
   ): Promise<string>;
+}
+
+/** Turno previo de una conversación, reenviado para dar memoria al chat. */
+export interface ChatTurn {
+  role: 'user' | 'assistant';
+  content: string;
 }
 
 /**

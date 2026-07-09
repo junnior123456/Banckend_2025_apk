@@ -120,7 +120,7 @@ export class AiController {
     // Enrutar según el tipo de chat
     switch (dto.chatType) {
       case AiChatType.DOG_RECOMMENDATION:
-        response = await this.geminiService.generalChat(userId, dto.message);
+        response = await this.geminiService.generalChat(userId, dto.message, dto.history);
         break;
       case AiChatType.CARE_TRACKING:
         response = await this.geminiService.trackDogCare(userId, dto.message);
@@ -129,7 +129,7 @@ export class AiController {
         response = await this.geminiService.referToVet(userId, dto.message);
         break;
       default:
-        response = await this.geminiService.generalChat(userId, dto.message);
+        response = await this.geminiService.generalChat(userId, dto.message, dto.history);
     }
 
     return {
@@ -193,6 +193,7 @@ export class AiController {
       dto.message,
       ctx.petName,
       ctx.contextText,
+      dto.history,
     );
 
     return {
