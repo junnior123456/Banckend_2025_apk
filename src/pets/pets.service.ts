@@ -6,6 +6,7 @@ import { CreatePetDto } from './dto/create-pet.dto';
 import { UpdatePetDto } from './dto/update-pet.dto';
 import { SearchPetsDto } from './dto/search-pets.dto';
 import { PetImage } from './pet-image.entity';
+import { User } from '../users/user.entity';
 import { uploadToFirebase } from '../util/cloud_storage';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -16,6 +17,8 @@ export class PetsService {
     private readonly petRepository: Repository<Pet>,
     @InjectRepository(PetImage)
     private readonly petImageRepository: Repository<PetImage>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     @Inject(forwardRef(() => NotificationsService))
     private readonly notificationsService: NotificationsService,
   ) {}
@@ -48,9 +51,19 @@ export class PetsService {
         }
       }
 
+      // Autor automático: la publicación se firma con el perfil de quien la crea.
+      // Si no escribió datos de contacto, se toman del perfil (como al postear en FB).
+      const author = await this.userRepository.findOne({ where: { id: userId } });
+      const authorName = author
+        ? `${author.name ?? ''} ${author.lastname ?? ''}`.trim()
+        : '';
+
       const pet = this.petRepository.create({
         ...createPetDto,
         userId: userId,
+        contactName: createPetDto.contactName?.trim() || authorName || undefined,
+        contactPhone: createPetDto.contactPhone?.trim() || author?.phone || undefined,
+        contactEmail: createPetDto.contactEmail?.trim() || author?.email || undefined,
       });
 
       if (file) {
