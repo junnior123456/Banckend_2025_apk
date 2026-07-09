@@ -7,7 +7,7 @@ import {
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
-/** Campos del usuario que NUNCA deben salir en una respuesta pública. */
+/** Campos del usuario que NUNCA deben salir en una respuesta HTTP. */
 const SENSITIVE_USER_FIELDS = [
   'password',
   'notification_token',
@@ -16,9 +16,11 @@ const SENSITIVE_USER_FIELDS = [
 ];
 
 /**
- * Recorre la respuesta y borra los campos sensibles de cualquier objeto `user`
- * embebido. `GET /api/pets` es público y trae la relación `pet.user` completa;
- * sin esto expone el hash de la contraseña y los tokens de reseteo de cada dueño.
+ * Recorre toda la respuesta y borra los campos sensibles de cualquier objeto
+ * de usuario embebido. Aplicado globalmente (main.ts): ningún endpoint —ni el
+ * de hoy ni el que se añada mañana— puede filtrar el hash de la contraseña ni
+ * los tokens de reseteo. Antes lo hacían `GET /users`, `GET /users/:id` y
+ * `GET /pets` (por la relación `pet.user`).
  */
 function scrub(node: any, seen = new Set<any>()): void {
   if (!node || typeof node !== 'object' || seen.has(node)) return;
@@ -29,11 +31,11 @@ function scrub(node: any, seen = new Set<any>()): void {
     return;
   }
 
+  // Un objeto que tiene 'password' o 'resetPasswordToken' es un usuario.
+  if ('password' in node || 'resetPasswordToken' in node) {
+    for (const f of SENSITIVE_USER_FIELDS) delete node[f];
+  }
   for (const key of Object.keys(node)) {
-    // Un objeto con estos campos es un usuario, venga o no en una clave 'user'.
-    if (key === 'password' || key === 'resetPasswordToken') {
-      for (const f of SENSITIVE_USER_FIELDS) delete node[f];
-    }
     scrub(node[key], seen);
   }
 }

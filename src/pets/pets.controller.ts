@@ -23,10 +23,8 @@ import { PetsService } from './pets.service';
 import { CreatePetDto } from './dto/create-pet.dto';
 import { UpdatePetDto } from './dto/update-pet.dto';
 import { SearchPetsDto } from './dto/search-pets.dto';
-import { SanitizeUserInterceptor } from './sanitize-user.interceptor';
 
-// Quita password y tokens del `user` embebido en TODA respuesta de mascotas.
-@UseInterceptors(SanitizeUserInterceptor)
+// El saneo del `user` embebido lo hace ahora el interceptor global (main.ts).
 @Controller('pets')
 export class PetsController {
   constructor(private readonly petsService: PetsService) {}
