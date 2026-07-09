@@ -17,6 +17,7 @@ import {
   ChatTurn,
 } from '../domain/interfaces/ai-service.interface';
 import { MAX_HISTORY_TURNS } from '../application/dto/chat-turn.dto';
+import { VeterinariasService } from '../../veterinarias/veterinarias.service';
 
 @Injectable()
 export class GeminiService implements IAiService {
@@ -46,7 +47,7 @@ export class GeminiService implements IAiService {
     Considera el clima tropical de Tarapoto en tus recomendaciones.
   `;
 
-  constructor() {
+  constructor(private readonly veterinarias: VeterinariasService) {
     if (!this.token) {
       this.logger.warn('⚠️ GITHUB_TOKEN no configurado - IA no disponible');
     }
@@ -191,23 +192,35 @@ export class GeminiService implements IAiService {
   }
 
   async referToVet(userId: number, concern: string): Promise<string> {
+    // Directorio REAL de la app. Si hay veterinarias cargadas, el modelo debe
+    // recomendar ESAS (no inventar clínicas). Si está vacío, cae al modo genérico.
+    const directory = await this.veterinarias.directoryForAi();
+
+    const directoryBlock = directory
+      ? `
+      VETERINARIAS REGISTRADAS EN LA APP (usa EXCLUSIVAMENTE estas, con su contacto real;
+      NO inventes otras ni cambies sus datos):
+      ${directory}
+
+      Recomienda 1-3 de la lista según la urgencia y cercanía, citando su nombre y contacto.`
+      : `
+      (No hay veterinarias registradas en la app todavía.) Recomienda buscar veterinarias
+      en Tarapoto por zonas: centro, Morales y Banda de Shilcayo. NO inventes nombres ni
+      teléfonos concretos; sugiere criterios de búsqueda.`;
+
     const prompt = `
       ${this.BASE_CONTEXT}
 
       TAREA: Referir a veterinarias o clínicas de mascotas en Tarapoto, San Martín, Perú.
 
       Preocupación del dueño: "${concern}"
+      ${directoryBlock}
 
-      Por favor:
+      Además:
       1. Evalúa la urgencia del caso (¿es emergencia?)
-      2. Recomienda buscar veterinarias en Tarapoto con estos criterios:
-         - Zona centro de Tarapoto
-         - Zona Morales
-         - Zona Banda de Shilcayo
-      3. Menciona qué tipo de especialista necesita (veterinario general, cirujano, etc.)
-      4. Da consejos de primeros auxilios si aplica mientras llega al veterinario
-      5. Menciona qué información llevar al veterinario (síntomas, duración, etc.)
-      6. Indica el costo aproximado de consulta veterinaria en Tarapoto (S/. 30-80 soles)
+      2. Menciona qué tipo de especialista necesita (veterinario general, cirujano, etc.)
+      3. Da consejos de primeros auxilios si aplica mientras llega al veterinario
+      4. Menciona qué información llevar al veterinario (síntomas, duración, etc.)
 
       IMPORTANTE: Siempre recomienda consultar con un veterinario profesional para
       diagnósticos y tratamientos. No reemplaces la consulta veterinaria.

@@ -20,6 +20,7 @@ import { ReportsModule } from './reports/reports.module';
 import { SearchModule } from './search/search.module';
 import { DonationsModule } from './donations/donations.module';
 import { AiModule } from './ai/ai.module'; // 🤖 Módulo de IA con Google Gemini
+import { VeterinariasModule } from './veterinarias/veterinarias.module';
 
 // === Entidades PawFinder ===
 import { User } from './users/user.entity';
@@ -40,6 +41,7 @@ import { Comment } from './comments/comment.entity';
 import { Notification } from './notifications/notification.entity';
 import { Report } from './reports/report.entity';
 import { Donation } from './donations/donation.entity';
+import { Veterinaria } from './veterinarias/veterinaria.entity';
 
 @Module({
   imports: [
@@ -71,6 +73,7 @@ import { Donation } from './donations/donation.entity';
               Notification,
               Report,
               Donation,
+              Veterinaria,
               PetVaccination,
               PetWeight,
               PetAllergy,
@@ -108,6 +111,7 @@ import { Donation } from './donations/donation.entity';
               Notification,
               Report,
               Donation,
+              Veterinaria,
               PetVaccination,
               PetWeight,
               PetAllergy,
@@ -136,6 +140,7 @@ import { Donation } from './donations/donation.entity';
     SearchModule,
     DonationsModule,
     AiModule,       // 🤖 IA: Recomendación de perros, cuidado y veterinarias en Tarapoto
+    VeterinariasModule,
   ],
   controllers: [AppController],
   providers: [AppService],
