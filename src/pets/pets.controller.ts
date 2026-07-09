@@ -107,6 +107,29 @@ export class PetsController {
     }
   }
 
+  // 📰 GET /api/pets/feed - Muro social (like/comentar/compartir)
+  @Get('feed')
+  @UseGuards(JwtAuthGuard)
+  async getFeed(
+    @Request() req: any,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    try {
+      const result = await this.petsService.getFeed(
+        req.user.userId,
+        parseInt(page),
+        parseInt(limit),
+      );
+      return { ok: true, data: result };
+    } catch (error) {
+      throw new HttpException(
+        { ok: false, message: error.message || 'Error al obtener el feed' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
   // 🔍 GET /api/pets/:id - Obtener mascota por ID
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {

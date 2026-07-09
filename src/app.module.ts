@@ -28,6 +28,7 @@ import { Rol } from './roles/rol.entity';
 import { Pet } from './pets/pet.entity';
 import { Category } from './categories/category.entity';
 import { PetImage } from './pets/pet-image.entity';
+import { PetLike } from './pets/pet-like.entity';
 import { PetVaccination } from './pets/pet-vaccination.entity';
 import { PetWeight } from './pets/pet-weight.entity';
 import { PetAllergy } from './pets/pet-allergy.entity';
@@ -68,6 +69,7 @@ import { Veterinaria } from './veterinarias/veterinaria.entity';
               Pet,
               Category,
               PetImage,
+              PetLike,
               AdoptionRequest,
               Comment,
               Notification,
@@ -106,6 +108,7 @@ import { Veterinaria } from './veterinarias/veterinaria.entity';
               Pet,
               Category,
               PetImage,
+              PetLike,
               AdoptionRequest,
               Comment,
               Notification,

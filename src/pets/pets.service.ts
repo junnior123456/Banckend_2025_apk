@@ -6,7 +6,9 @@ import { CreatePetDto } from './dto/create-pet.dto';
 import { UpdatePetDto } from './dto/update-pet.dto';
 import { SearchPetsDto } from './dto/search-pets.dto';
 import { PetImage } from './pet-image.entity';
+import { PetLike } from './pet-like.entity';
 import { User } from '../users/user.entity';
+import { Comment } from '../comments/comment.entity';
 import { uploadToFirebase } from '../util/cloud_storage';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -19,6 +21,10 @@ export class PetsService {
     private readonly petImageRepository: Repository<PetImage>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(PetLike)
+    private readonly petLikeRepository: Repository<PetLike>,
+    @InjectRepository(Comment)
+    private readonly commentRepository: Repository<Comment>,
     @Inject(forwardRef(() => NotificationsService))
     private readonly notificationsService: NotificationsService,
   ) {}
@@ -552,25 +558,121 @@ export class PetsService {
   }
 
   // Toggle favorito (placeholder - requiere tabla de favoritos)
-  async toggleFavorite(petId: number, userId: number): Promise<{ isFavorite: boolean }> {
-    // TODO: Implementar tabla de favoritos
-    // Por ahora retornamos un placeholder
-    return { isFavorite: true };
+  async toggleFavorite(
+    petId: number,
+    userId: number,
+  ): Promise<{ isFavorite: boolean; likesCount: number }> {
+    const pet = await this.petRepository.findOne({ where: { id: petId } });
+    if (!pet) throw new NotFoundException('Mascota no encontrada');
+
+    const existing = await this.petLikeRepository.findOne({
+      where: { petId, userId },
+    });
+    if (existing) {
+      await this.petLikeRepository.remove(existing);
+    } else {
+      await this.petLikeRepository.save(
+        this.petLikeRepository.create({ petId, userId }),
+      );
+    }
+    const likesCount = await this.petLikeRepository.count({ where: { petId } });
+    return { isFavorite: !existing, likesCount };
   }
 
-  // Obtener favoritos del usuario (placeholder)
+  // Publicaciones que le gustaron al usuario.
   async getFavoritesByUser(
     userId: number,
     page: number = 1,
     limit: number = 10,
-  ): Promise<{ data: Pet[]; total: number; page: number; totalPages: number }> {
-    // TODO: Implementar tabla de favoritos
-    // Por ahora retornamos vacío
+  ): Promise<{ data: any[]; total: number; page: number; totalPages: number }> {
+    const likes = await this.petLikeRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+    const ids = likes.map((l) => l.petId);
+    if (!ids.length) return { data: [], total: 0, page, totalPages: 0 };
+
+    const skip = (page - 1) * limit;
+    const pageIds = ids.slice(skip, skip + limit);
+    const pets = await this.petRepository.find({
+      where: { id: In(pageIds) },
+      relations: ['user', 'images', 'category'],
+    });
+    // Conservar el orden de "más reciente primero".
+    const byId = new Map(pets.map((p) => [p.id, p]));
+    const data = pageIds.map((id) => byId.get(id)).filter(Boolean);
+    const withCounts = await this.decorateSocial(data as Pet[], userId);
     return {
-      data: [],
-      total: 0,
+      data: withCounts,
+      total: ids.length,
       page,
-      totalPages: 0,
+      totalPages: Math.ceil(ids.length / limit),
     };
+  }
+
+  /**
+   * Feed social: publicaciones activas, más recientes primero, con
+   * likesCount, commentsCount e isLiked del usuario actual.
+   */
+  async getFeed(
+    userId: number,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{ data: any[]; total: number; page: number; totalPages: number }> {
+    const skip = (page - 1) * limit;
+    const [pets, total] = await this.petRepository
+      .createQueryBuilder('pet')
+      .leftJoinAndSelect('pet.user', 'user')
+      .leftJoinAndSelect('pet.images', 'images')
+      .leftJoinAndSelect('pet.category', 'category')
+      .where('pet.isActive = :isActive', { isActive: true })
+      .orderBy('pet.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+
+    const data = await this.decorateSocial(pets, userId);
+    return { data, total, page, totalPages: Math.ceil(total / limit) };
+  }
+
+  /**
+   * Añade likesCount/commentsCount/isLiked a una lista de publicaciones con
+   * 3 consultas agregadas (no N+1).
+   */
+  private async decorateSocial(pets: Pet[], userId: number): Promise<any[]> {
+    if (!pets.length) return [];
+    const ids = pets.map((p) => p.id);
+
+    const likeRows = await this.petLikeRepository
+      .createQueryBuilder('l')
+      .select('l.petId', 'petId')
+      .addSelect('COUNT(*)', 'count')
+      .where('l.petId IN (:...ids)', { ids })
+      .groupBy('l.petId')
+      .getRawMany();
+    const likeMap = new Map(likeRows.map((r) => [Number(r.petId), Number(r.count)]));
+
+    const commentRows = await this.commentRepository
+      .createQueryBuilder('c')
+      .select('c.petId', 'petId')
+      .addSelect('COUNT(*)', 'count')
+      .where('c.petId IN (:...ids)', { ids })
+      .groupBy('c.petId')
+      .getRawMany();
+    const commentMap = new Map(
+      commentRows.map((r) => [Number(r.petId), Number(r.count)]),
+    );
+
+    const myLikes = await this.petLikeRepository.find({
+      where: { userId, petId: In(ids) },
+    });
+    const likedSet = new Set(myLikes.map((l) => l.petId));
+
+    return pets.map((p) => ({
+      ...p,
+      likesCount: likeMap.get(p.id) ?? 0,
+      commentsCount: commentMap.get(p.id) ?? 0,
+      isLiked: likedSet.has(p.id),
+    }));
   }
 }

@@ -4,6 +4,8 @@ import { PetsService } from './pets.service';
 import { PetsController } from './pets.controller';
 import { Pet } from './pet.entity';
 import { PetImage } from './pet-image.entity';
+import { PetLike } from './pet-like.entity';
+import { Comment } from '../comments/comment.entity';
 import { PetVaccination } from './pet-vaccination.entity';
 import { VaccinationsService } from './vaccinations.service';
 import { VaccinationsController } from './vaccinations.controller';
@@ -41,6 +43,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
     TypeOrmModule.forFeature([
       Pet,
       PetImage,
+      PetLike,
+      Comment,
       PetVaccination,
       PetWeight,
       PetAllergy,
