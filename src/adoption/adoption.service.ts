@@ -8,6 +8,7 @@ import { CreateAdoptionRequestDto } from './dto/create-adoption-request.dto';
 import { UpdateAdoptionRequestDto } from './dto/update-adoption-request.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/notification.entity';
+import { TransfersService } from '../pets/transfers.service';
 
 @Injectable()
 export class AdoptionService {
@@ -20,6 +21,8 @@ export class AdoptionService {
     private userRepository: Repository<User>,
     @Inject(forwardRef(() => NotificationsService))
     private notificationsService: NotificationsService,
+    @Inject(forwardRef(() => TransfersService))
+    private transfersService: TransfersService,
   ) {}
 
   // Crear nueva solicitud de adopción
@@ -301,6 +304,18 @@ export class AdoptionService {
       
       // Actualizar estado de la mascota a adoptada
       await this.petRepository.update(request.petId, { status: 'adopted' });
+
+      // El expediente viaja con la mascota: el adoptante pasa a ser su dueño.
+      // Si esto falla, la adopción sigue completada; se avisa en los logs.
+      try {
+        await this.transfersService.transferOwnership(request.petId, request.adopterId, {
+          reason: 'adoption',
+          adoptionRequestId: request.id,
+          performedBy: request.pet.userId,
+        });
+      } catch (error) {
+        console.error('❌ No se pudo transferir el expediente:', error.message);
+      }
       
       // Enviar notificación de adopción completada a ambos
       try {
@@ -409,6 +424,18 @@ export class AdoptionService {
       
       // Actualizar estado de la mascota a adoptada
       await this.petRepository.update(request.petId, { status: 'adopted' });
+
+      // El expediente viaja con la mascota: el adoptante pasa a ser su dueño.
+      // Si esto falla, la adopción sigue completada; se avisa en los logs.
+      try {
+        await this.transfersService.transferOwnership(request.petId, request.adopterId, {
+          reason: 'adoption',
+          adoptionRequestId: request.id,
+          performedBy: request.pet.userId,
+        });
+      } catch (error) {
+        console.error('❌ No se pudo transferir el expediente:', error.message);
+      }
       
       // Enviar notificación de adopción completada a ambos
       try {

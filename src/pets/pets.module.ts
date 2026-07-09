@@ -28,8 +28,12 @@ import { DocumentsController } from './documents.controller';
 import { VaccineReminderLog } from './vaccine-reminder.entity';
 import { VaccinationRemindersService } from './vaccination-reminders.service';
 import { VaccinationRemindersController } from './vaccination-reminders.controller';
+import { PetTransfer } from './pet-transfer.entity';
+import { TransfersService } from './transfers.service';
+import { TransfersController } from './transfers.controller';
 import { PetContextService } from './pet-context.service';
 import { PetAiConsentController } from './pet-ai-consent.controller';
+import { User } from '../users/user.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
@@ -44,6 +48,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
       PetMedicalRecord,
       PetDocument,
       VaccineReminderLog,
+      PetTransfer,
+      User,
     ]),
     forwardRef(() => NotificationsModule),
   ],
@@ -59,6 +65,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     MedicalRecordsController,
     DocumentsController,
     VaccinationRemindersController,
+    TransfersController,
   ],
   providers: [
     PetsService,
@@ -71,7 +78,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
     MedicalRecordsService,
     DocumentsService,
     VaccinationRemindersService,
+    TransfersService,
   ],
-  exports: [PetsService, PetContextService],
+  exports: [PetsService, PetContextService, TransfersService],
 })
 export class PetsModule {}
