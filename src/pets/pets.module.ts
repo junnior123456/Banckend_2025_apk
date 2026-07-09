@@ -19,6 +19,9 @@ import { MedicationsController } from './medications.controller';
 import { PetProfileService } from './pet-profile.service';
 import { PetProfileController } from './pet-profile.controller';
 import { PublicPetController } from './public-pet.controller';
+import { PetMedicalRecord } from './pet-medical-record.entity';
+import { MedicalRecordsService } from './medical-records.service';
+import { MedicalRecordsController } from './medical-records.controller';
 import { PetContextService } from './pet-context.service';
 import { PetAiConsentController } from './pet-ai-consent.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -32,6 +35,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       PetWeight,
       PetAllergy,
       PetMedication,
+      PetMedicalRecord,
     ]),
     forwardRef(() => NotificationsModule),
   ],
@@ -44,6 +48,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     PetProfileController,
     PublicPetController,
     PetAiConsentController,
+    MedicalRecordsController,
   ],
   providers: [
     PetsService,
@@ -53,6 +58,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     MedicationsService,
     PetProfileService,
     PetContextService,
+    MedicalRecordsService,
   ],
   exports: [PetsService, PetContextService],
 })

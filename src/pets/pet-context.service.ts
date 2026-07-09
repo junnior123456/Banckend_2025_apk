@@ -6,6 +6,7 @@ import { PetVaccination } from './pet-vaccination.entity';
 import { PetWeight } from './pet-weight.entity';
 import { PetAllergy } from './pet-allergy.entity';
 import { PetMedication } from './pet-medication.entity';
+import { PetMedicalRecord } from './pet-medical-record.entity';
 
 /**
  * Módulo 3 — Contexto del expediente para la IA.
@@ -38,6 +39,8 @@ export class PetContextService {
     private readonly allergyRepo: Repository<PetAllergy>,
     @InjectRepository(PetMedication)
     private readonly medRepo: Repository<PetMedication>,
+    @InjectRepository(PetMedicalRecord)
+    private readonly recordRepo: Repository<PetMedicalRecord>,
   ) {}
 
   private async assertAccess(petId: number, userId: number, roles: string[]) {
@@ -119,11 +122,12 @@ export class PetContextService {
       };
     }
 
-    const [vaccinations, weights, allergies, medications] = await Promise.all([
+    const [vaccinations, weights, allergies, medications, records] = await Promise.all([
       this.vaccRepo.find({ where: { petId }, order: { appliedAt: 'DESC' }, take: 20 }),
       this.weightRepo.find({ where: { petId }, order: { measuredAt: 'DESC' }, take: 12 }),
       this.allergyRepo.find({ where: { petId } }),
       this.medRepo.find({ where: { petId }, order: { startAt: 'DESC' }, take: 20 }),
+      this.recordRepo.find({ where: { petId }, order: { occurredAt: 'DESC' }, take: 20 }),
     ]);
 
     const lines: string[] = [];
@@ -180,14 +184,29 @@ export class PetContextService {
     }
 
     lines.push('');
+    lines.push(`--- HISTORIA CLÍNICA (${records.length} entradas) ---`);
+    if (!records.length) lines.push('Sin entradas de historia clínica.');
+    for (const r of records) {
+      const partes = [
+        `- [${r.type}] ${r.occurredAt}: ${r.title}`,
+        r.vetName ? `(vet: ${r.vetName})` : '',
+        r.diagnosis ? `· diagnóstico: ${r.diagnosis}` : '',
+        r.treatment ? `· tratamiento: ${r.treatment}` : '',
+        r.notes ? `· notas: ${r.notes}` : '',
+      ].filter(Boolean);
+      lines.push(partes.join(' '));
+    }
+
+    lines.push('');
     lines.push(`Fecha de hoy: ${today}`);
     lines.push('=== FIN DEL EXPEDIENTE ===');
     lines.push(
       'El expediente contiene ÚNICAMENTE las secciones anteriores: identidad, ' +
-        'vacunas, peso, alergias y medicación. NO existe registro de ningún otro ' +
-        'tema (desparasitaciones, cirugías, consultas veterinarias, exámenes de ' +
-        'laboratorio, radiografías, dieta). Si te preguntan por algo de eso, la ' +
-        'respuesta correcta es que no hay registro en el expediente.',
+        'vacunas, peso, alergias, medicación e historia clínica. NO existe ' +
+        'registro de ningún otro tema (documentos, radiografías, dieta, análisis ' +
+        'de laboratorio que no aparezcan arriba). Si te preguntan por algo que no ' +
+        'está escrito arriba, la respuesta correcta es que no hay registro en el ' +
+        'expediente.',
     );
 
     return {
