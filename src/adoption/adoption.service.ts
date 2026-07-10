@@ -156,6 +156,16 @@ export class AdoptionService {
       .getMany();
   }
 
+  // Todas las solicitudes de adopción (solo ADMIN).
+  async getAllRequests(): Promise<AdoptionRequest[]> {
+    return await this.adoptionRequestRepository
+      .createQueryBuilder('request')
+      .leftJoinAndSelect('request.pet', 'pet')
+      .leftJoinAndSelect('request.adopter', 'adopter')
+      .orderBy('request.createdAt', 'DESC')
+      .getMany();
+  }
+
   // Obtener detalles de una solicitud específica
   async getRequestById(requestId: number, userId: number): Promise<AdoptionRequest> {
     const request = await this.adoptionRequestRepository.findOne({

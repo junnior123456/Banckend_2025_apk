@@ -21,6 +21,20 @@ import { UpdateCommentDto } from './dto/update-comment.dto';
 export class CommentsController {
   constructor(private readonly commentsService: CommentsService) {}
 
+  // Todos los comentarios (solo ADMIN, rol '1').
+  @Get('admin/all')
+  @UseGuards(JwtAuthGuard)
+  async getAllComments(@Request() req: any) {
+    const roles: string[] = req.user?.roles ?? [];
+    if (!roles.includes('1')) {
+      throw new HttpException(
+        'Solo el administrador puede ver todos los comentarios',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+    return this.commentsService.getAllComments();
+  }
+
   // Obtener comentarios de una mascota
   @Get('pet/:petId')
   async getCommentsByPet(
@@ -177,8 +191,9 @@ export class CommentsController {
   async deleteComment(@Param('id') id: string, @Request() req: any) {
     try {
       const userId = req.user.userId;
-      await this.commentsService.deleteComment(parseInt(id), userId);
-      
+      const isAdmin = (req.user?.roles ?? []).includes('1');
+      await this.commentsService.deleteComment(parseInt(id), userId, isAdmin);
+
       return {
         ok: true,
         message: 'Comentario eliminado exitosamente',

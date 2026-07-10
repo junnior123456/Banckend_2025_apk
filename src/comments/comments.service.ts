@@ -191,7 +191,11 @@ export class CommentsService {
   }
 
   // Eliminar comentario
-  async deleteComment(commentId: number, userId: number): Promise<void> {
+  async deleteComment(
+    commentId: number,
+    userId: number,
+    isAdmin = false,
+  ): Promise<void> {
     const comment = await this.commentRepository.findOne({
       where: { id: commentId },
       relations: ['replies'],
@@ -201,8 +205,8 @@ export class CommentsService {
       throw new NotFoundException('Comentario no encontrado');
     }
 
-    // Verificar que el usuario es el autor del comentario
-    if (comment.userId !== userId) {
+    // El autor puede borrar el suyo; el ADMIN puede moderar cualquiera.
+    if (!isAdmin && comment.userId !== userId) {
       throw new ForbiddenException('No tienes permisos para eliminar este comentario');
     }
 
@@ -272,6 +276,18 @@ export class CommentsService {
   }
 
   // Obtener estadísticas de comentarios
+  // Todos los comentarios (solo ADMIN): incluye reportados, con autor.
+  async getAllComments(page: number = 1, limit: number = 50) {
+    const skip = (page - 1) * limit;
+    const [comments, total] = await this.commentRepository.findAndCount({
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+      skip,
+      take: limit,
+    });
+    return { comments, total };
+  }
+
   async getCommentStats(userId: number) {
     const totalComments = await this.commentRepository.count({
       where: { userId },

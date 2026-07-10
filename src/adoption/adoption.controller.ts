@@ -281,6 +281,20 @@ export class AdoptionController {
   }
 
   // Obtener estadísticas de adopción
+  // Todas las solicitudes de adopción (solo ADMIN, rol '1').
+  @Get('admin/all')
+  async getAllAdoptionRequests(@Request() req: any) {
+    const roles: string[] = req.user?.roles ?? [];
+    if (!roles.includes('1')) {
+      throw new HttpException(
+        { ok: false, message: 'Solo el administrador puede ver todas las solicitudes' },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+    const result = await this.adoptionService.getAllRequests();
+    return { ok: true, data: result };
+  }
+
   @Get('stats')
   async getAdoptionStats(@Request() req: any) {
     try {
