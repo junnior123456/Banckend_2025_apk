@@ -23,7 +23,37 @@ export interface IAiService {
   /**
    * Chat general sobre perros
    */
-  generalChat(userId: number, message: string): Promise<string>;
+  generalChat(userId: number, message: string, history?: ChatTurn[]): Promise<string>;
+
+  /**
+   * Clasifica/describe un perro a partir de su foto (visión)
+   */
+  classifyDogPhoto(imageUrl: string): Promise<DogPhotoAnalysis>;
+
+  /**
+   * Compara la foto de un perro perdido contra candidatos encontrados (visión)
+   * y devuelve un ranking de similitud
+   */
+  matchPets(lostImageUrl: string, candidates: PetMatchCandidate[]): Promise<PetMatchResult[]>;
+
+  /**
+   * Chat contextual sobre una mascota concreta.
+   * `contextText` es el expediente serializado y SÓLO debe pasarse si el dueño
+   * dio consentimiento; si es null, el modelo responde de forma genérica.
+   */
+  petChat(
+    userId: number,
+    message: string,
+    petName: string,
+    contextText: string | null,
+    history?: ChatTurn[],
+  ): Promise<string>;
+}
+
+/** Turno previo de una conversación, reenviado para dar memoria al chat. */
+export interface ChatTurn {
+  role: 'user' | 'assistant';
+  content: string;
 }
 
 /**
@@ -48,4 +78,33 @@ export interface DogCareContext {
   age?: number;      // Edad en meses
   weight?: number;   // Peso en kg
   name?: string;     // Nombre del perro
+}
+
+/**
+ * Resultado del análisis de una foto de perro (visión)
+ */
+export interface DogPhotoAnalysis {
+  raza: string;
+  color: string;
+  tamano: string;
+  edad_aproximada?: string;
+  senas_particulares?: string;
+  confianza: number; // 0-100
+}
+
+/**
+ * Candidato a comparar en el match de mascotas
+ */
+export interface PetMatchCandidate {
+  id: number;        // id de la mascota encontrada
+  imageUrl: string;  // URL o data URL de su foto
+}
+
+/**
+ * Resultado de similitud para un candidato
+ */
+export interface PetMatchResult {
+  candidateId: number;
+  score: number;   // 0-100
+  reason: string;
 }

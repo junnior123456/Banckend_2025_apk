@@ -87,6 +87,30 @@ export class Pet {
   @Column({ type: 'boolean', default: true })
   isActive: boolean; // Si la publicación está activa
 
+  // 📋 Módulo 3 — Expediente digital: identidad extendida
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  species: string; // Perro, Gato, etc.
+
+  @Column({ type: 'date', nullable: true })
+  birthDate: string; // Fecha de nacimiento
+
+  @Column({ type: 'varchar', length: 60, nullable: true })
+  microchip: string; // Número de microchip
+
+  @Column({ type: 'varchar', length: 32, nullable: true, unique: true })
+  publicUid: string; // Identificador público para el QR / ficha
+
+  // 🤖 Módulo 3 — Consentimiento para que la IA lea el expediente médico.
+  // Sin esto en true, PawBot responde genérico y nunca ve vacunas/peso/alergias/medicación.
+  @Column({ type: 'boolean', default: false })
+  aiConsent: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  aiConsentAt: Date;
+
+  @Column({ type: 'int', nullable: true })
+  aiConsentBy: number; // userId que otorgó o revocó por última vez
+
   // 📋 Requisitos para adopción
   @Column({ type: 'boolean', default: false })
   requiresOwnHome: boolean; // Requiere casa propia

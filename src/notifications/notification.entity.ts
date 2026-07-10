@@ -26,6 +26,10 @@ export enum NotificationType {
   // Notificaciones de donaciones
   NEW_DONATION = 'new_donation',
   
+  // Expediente de salud (Módulo 3)
+  VACCINE_REMINDER = 'vaccine_reminder', // Recordatorio de vacuna próxima o vencida
+  PET_TRANSFERRED = 'pet_transferred', // El expediente pasó a un nuevo dueño
+
   // Notificaciones del sistema
   WELCOME = 'welcome', // Nueva: bienvenida al registrarse
   SYSTEM_MESSAGE = 'system_message'

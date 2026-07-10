@@ -24,6 +24,7 @@ import { CreatePetDto } from './dto/create-pet.dto';
 import { UpdatePetDto } from './dto/update-pet.dto';
 import { SearchPetsDto } from './dto/search-pets.dto';
 
+// El saneo del `user` embebido lo hace ahora el interceptor global (main.ts).
 @Controller('pets')
 export class PetsController {
   constructor(private readonly petsService: PetsService) {}
@@ -101,6 +102,29 @@ export class PetsController {
           ok: false,
           message: error.message || 'Error al obtener mis mascotas',
         },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  // 📰 GET /api/pets/feed - Muro social (like/comentar/compartir)
+  @Get('feed')
+  @UseGuards(JwtAuthGuard)
+  async getFeed(
+    @Request() req: any,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    try {
+      const result = await this.petsService.getFeed(
+        req.user.userId,
+        parseInt(page),
+        parseInt(limit),
+      );
+      return { ok: true, data: result };
+    } catch (error) {
+      throw new HttpException(
+        { ok: false, message: error.message || 'Error al obtener el feed' },
         HttpStatus.BAD_REQUEST,
       );
     }

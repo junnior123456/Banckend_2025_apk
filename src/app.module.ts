@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { AppController } from './app.controller';
@@ -19,6 +20,7 @@ import { ReportsModule } from './reports/reports.module';
 import { SearchModule } from './search/search.module';
 import { DonationsModule } from './donations/donations.module';
 import { AiModule } from './ai/ai.module'; // 🤖 Módulo de IA con Google Gemini
+import { VeterinariasModule } from './veterinarias/veterinarias.module';
 
 // === Entidades PawFinder ===
 import { User } from './users/user.entity';
@@ -26,11 +28,21 @@ import { Rol } from './roles/rol.entity';
 import { Pet } from './pets/pet.entity';
 import { Category } from './categories/category.entity';
 import { PetImage } from './pets/pet-image.entity';
+import { PetLike } from './pets/pet-like.entity';
+import { PetVaccination } from './pets/pet-vaccination.entity';
+import { PetWeight } from './pets/pet-weight.entity';
+import { PetAllergy } from './pets/pet-allergy.entity';
+import { PetMedication } from './pets/pet-medication.entity';
+import { PetMedicalRecord } from './pets/pet-medical-record.entity';
+import { PetDocument } from './pets/pet-document.entity';
+import { VaccineReminderLog } from './pets/vaccine-reminder.entity';
+import { PetTransfer } from './pets/pet-transfer.entity';
 import { AdoptionRequest } from './adoption/adoption-request.entity';
 import { Comment } from './comments/comment.entity';
 import { Notification } from './notifications/notification.entity';
 import { Report } from './reports/report.entity';
 import { Donation } from './donations/donation.entity';
+import { Veterinaria } from './veterinarias/veterinaria.entity';
 
 @Module({
   imports: [
@@ -39,6 +51,9 @@ import { Donation } from './donations/donation.entity';
       isGlobal: true,
       envFilePath: '.env',
     }),
+
+    // ⏰ Tareas programadas (recordatorios de vacunas). Sin esto el @Cron no corre.
+    ScheduleModule.forRoot(),
 
     // 💾 Conexión a base de datos
     // Si existiera DATABASE_URL (PostgreSQL en otra plataforma) la usa,
@@ -54,11 +69,21 @@ import { Donation } from './donations/donation.entity';
               Pet,
               Category,
               PetImage,
+              PetLike,
               AdoptionRequest,
               Comment,
               Notification,
               Report,
               Donation,
+              Veterinaria,
+              PetVaccination,
+              PetWeight,
+              PetAllergy,
+              PetMedication,
+              PetMedicalRecord,
+              PetDocument,
+              VaccineReminderLog,
+              PetTransfer,
             ],
             // Sincronizar para crear tablas nuevas automáticamente
             synchronize: true,
@@ -83,11 +108,21 @@ import { Donation } from './donations/donation.entity';
               Pet,
               Category,
               PetImage,
+              PetLike,
               AdoptionRequest,
               Comment,
               Notification,
               Report,
               Donation,
+              Veterinaria,
+              PetVaccination,
+              PetWeight,
+              PetAllergy,
+              PetMedication,
+              PetMedicalRecord,
+              PetDocument,
+              VaccineReminderLog,
+              PetTransfer,
             ],
             synchronize: true,
             logging: process.env.NODE_ENV !== 'production',
@@ -108,6 +143,7 @@ import { Donation } from './donations/donation.entity';
     SearchModule,
     DonationsModule,
     AiModule,       // 🤖 IA: Recomendación de perros, cuidado y veterinarias en Tarapoto
+    VeterinariasModule,
   ],
   controllers: [AppController],
   providers: [AppService],

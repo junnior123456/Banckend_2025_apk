@@ -17,7 +17,8 @@ export class UsersService {
 // 🔹 Crear usuario con rol por defecto
 async create(user: CreateUserDto) {
   try {
-    // Crear usuario
+    // El password lo hashea el hook @BeforeInsert de la entidad User
+    // (NO hashear aquí: sería doble hash y el login fallaría).
     const newUser = this.userRepository.create(user);
     const savedUser = await this.userRepository.save(newUser);
 
@@ -115,5 +116,29 @@ async create(user: CreateUserDto) {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  // 🔹 Cambiar el rol de un usuario (usado por el ADMIN para promover a VET).
+  //    roleId: '1'=ADMIN, '2'=CLIENT, '3'=VET. Reemplaza los roles actuales.
+  async setRole(userId: number, roleId: string) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['roles'],
+    });
+    if (!user) {
+      throw new HttpException('Usuario no encontrado', HttpStatus.NOT_FOUND);
+    }
+    const rolesToRemove = user.roles
+      .map((r) => r.id)
+      .filter((id) => id !== roleId);
+    await this.userRepository
+      .createQueryBuilder()
+      .relation(User, 'roles')
+      .of(userId)
+      .addAndRemove([roleId], rolesToRemove);
+    return this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['roles'],
+    });
   }
 }

@@ -11,15 +11,42 @@ export interface PushNotificationData {
   imageUrl?: string;
 }
 
+/**
+ * Inicializa el SDK de Firebase Admin una sola vez.
+ * Sin esto `admin.messaging()` lanza "The default Firebase app does not exist"
+ * y NINGÚN push se envía jamás (era el estado del proyecto hasta el 9-jul-2026).
+ * Las credenciales salen de GOOGLE_APPLICATION_CREDENTIALS (serviceAccountKey.json).
+ */
+function initFirebase(): boolean {
+  if (admin.apps.length) return true;
+  try {
+    admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
+      projectId: process.env.GCLOUD_PROJECT_ID,
+    });
+    console.log('✅ Firebase Admin inicializado — los push FCM están activos');
+    return true;
+  } catch (error) {
+    // Sin credenciales la app debe seguir arrancando: el push queda desactivado.
+    console.error('⚠️ Firebase Admin NO inicializado, push desactivado:', (error as Error).message);
+    return false;
+  }
+}
+
 @Injectable()
 export class PushNotificationService {
+  private readonly pushEnabled: boolean;
+
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
-  ) {}
+  ) {
+    this.pushEnabled = initFirebase();
+  }
 
   // Enviar notificación push a un usuario específico
   async sendToUser(userId: number, notification: PushNotificationData): Promise<boolean> {
+    if (!this.pushEnabled) return false;
     try {
       const user = await this.userRepository.findOne({
         where: { id: userId },

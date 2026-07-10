@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Notification } from './notification.entity';
 import { NotificationsController } from './notifications.controller';
+import { PushTokenController } from './push-token.controller';
 import { NotificationsService } from './notifications.service';
 import { PushNotificationService } from './push-notification.service';
 import { User } from '../users/user.entity';
@@ -10,7 +11,7 @@ import { AdoptionRequest } from '../adoption/adoption-request.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Notification, User, Pet, AdoptionRequest])],
-  controllers: [NotificationsController],
+  controllers: [NotificationsController, PushTokenController],
   providers: [NotificationsService, PushNotificationService],
   exports: [NotificationsService, PushNotificationService, TypeOrmModule],
 })

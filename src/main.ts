@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { SanitizeUserInterceptor } from './common/sanitize-user.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -30,6 +31,9 @@ async function bootstrap() {
     transform: true,
     transformOptions: { enableImplicitConversion: true },
   }));
+
+  // Nunca dejar salir password/tokens del usuario en ninguna respuesta.
+  app.useGlobalInterceptors(new SanitizeUserInterceptor());
 
   // Escuchar en todas las interfaces para permitir conexiones desde emuladores
   const port = process.env.PORT || 3000;
