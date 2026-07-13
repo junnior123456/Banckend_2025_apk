@@ -1,3 +1,10 @@
+// PRIMERA línea a propósito: DATABASE_URL se lee al importar app.module, así que
+// el .env tiene que estar cargado antes. Antes esto se hacía con `node -r
+// dotenv/config`, pero pm2 NO propaga --node-args a los workers en modo cluster:
+// el .env no se cargaba, TypeORM se iba a la rama de MySQL y el proceso moría
+// en silencio. Cargándolo aquí, la app arranca igual en fork que en cluster.
+import 'dotenv/config';
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
