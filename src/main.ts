@@ -1,49 +1,106 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { SanitizeUserInterceptor } from './common/sanitize-user.interceptor';
+import helmet from 'helmet';
+
+/**
+ * Orígenes web autorizados (build web / panel), vía CORS_ORIGINS separados por
+ * coma. La APK Android no envía cabecera Origin, así que no depende de esta lista.
+ */
+function allowedOrigins(): string[] {
+  return (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'],
   });
 
-  // Configurar UTF-8 para caracteres especiales
+  // nginx es el único que habla con Node. Sin trust proxy, req.ip sería siempre
+  // 127.0.0.1 y el rate limiting trataría a todos los usuarios como uno solo.
+  const express = app.getHttpAdapter().getInstance();
+  express.set('trust proxy', 1);
+  express.disable('x-powered-by');
+
+  app.use(
+    helmet({
+      // La API sólo devuelve JSON: ningún origen debe poder ejecutar,
+      // incrustar ni cargar nada a partir de una respuesta suya.
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+          baseUri: ["'none'"],
+          formAction: ["'none'"],
+        },
+      },
+      // El transporte es HTTP plano: el navegador ignoraría HSTS y sólo daría
+      // una falsa sensación de cifrado. Activar al migrar a TLS.
+      hsts: false,
+      referrerPolicy: { policy: 'no-referrer' },
+      crossOriginResourcePolicy: { policy: 'same-origin' },
+    }),
+  );
+
   app.use((req, res, next) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader(
+      'Permissions-Policy',
+      'geolocation=(), camera=(), microphone=(), payment=(), usb=()',
+    );
+    // Datos personales y expedientes clínicos: que ningún intermediario cachee.
+    res.setHeader('Cache-Control', 'no-store');
     next();
   });
 
-  // Prefijo global para tu APK: http://<host>:<port>/api/...
+  // Prefijo global para la APK: http://<host>/api/...
   app.setGlobalPrefix('api');
 
-  // CORS abierto para Flutter (app y web)
+  const origins = allowedOrigins();
   app.enableCors({
-    origin: true,
+    origin: (origin, callback) => {
+      // Sin Origin = cliente no-navegador (la APK, curl, Postman). CORS no
+      // aplica ahí; a esos clientes los frenan el JWT y el rate limiting.
+      if (!origin) return callback(null, true);
+      if (origins.includes(origin)) return callback(null, true);
+      return callback(new Error(`Origen no autorizado: ${origin}`), false);
+    },
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type,Authorization',
+    maxAge: 86400,
   });
 
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-    transformOptions: { enableImplicitConversion: true },
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+    }),
+  );
 
   // Nunca dejar salir password/tokens del usuario en ninguna respuesta.
   app.useGlobalInterceptors(new SanitizeUserInterceptor());
 
-  // Escuchar en todas las interfaces para permitir conexiones desde emuladores
+  app.enableShutdownHooks();
+
   const port = process.env.PORT || 3000;
   const host = '0.0.0.0';
-  
+
   await app.listen(port, host);
-  
-  console.log(`🚀 Backend corriendo en http://${host}:${port}`);
-  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`📦 Port: ${port}`);
+
+  const log = new Logger('Bootstrap');
+  log.log(`🚀 Backend corriendo en http://${host}:${port}`);
+  log.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+  log.log(
+    `🔒 CORS: ${origins.length ? origins.join(', ') : 'sin orígenes web (sólo clientes nativos)'}`,
+  );
+  log.log(`👷 Instancia pm2: ${process.env.NODE_APP_INSTANCE ?? 'única'}`);
 }
 
 bootstrap().catch((err) => {
