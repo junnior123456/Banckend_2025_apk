@@ -10,6 +10,14 @@ import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SanitizeUserInterceptor } from './common/sanitize-user.interceptor';
 import helmet from 'helmet';
+import { json, urlencoded } from 'express';
+
+/**
+ * Rutas de IA que reciben una foto en base64 dentro del JSON. Una foto de móvil
+ * ronda los 500 KB y en base64 se infla un 33%, así que necesitan un límite muy
+ * por encima del resto de la API.
+ */
+const RUTAS_CON_FOTO = ['/api/ai/analyze-photo', '/api/ai/match-pets'];
 
 /**
  * Orígenes web autorizados (build web / panel), vía CORS_ORIGINS separados por
@@ -25,7 +33,21 @@ function allowedOrigins(): string[] {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'],
+    // Se desactiva el body parser por defecto de Nest para poder poner los
+    // límites a mano: el suyo es de 100 KB y hacía que TODA foto enviada a la
+    // IA fuera rechazada con un 413 ("request entity too large").
+    bodyParser: false,
   });
+
+  // Primero las rutas con foto: el primer parser que corre es el que manda, así
+  // que registrarlas antes les da su límite grande. El resto de la API se queda
+  // en 1 MB, que es de sobra para JSON y evita que cualquier endpoint acepte
+  // cuerpos de 12 MB (eso sería regalar un vector de agotamiento de memoria).
+  for (const ruta of RUTAS_CON_FOTO) {
+    app.use(ruta, json({ limit: '12mb' }));
+  }
+  app.use(json({ limit: '1mb' }));
+  app.use(urlencoded({ extended: true, limit: '1mb' }));
 
   // nginx es el único que habla con Node. Sin trust proxy, req.ip sería siempre
   // 127.0.0.1 y el rate limiting trataría a todos los usuarios como uno solo.
