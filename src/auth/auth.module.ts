@@ -16,7 +16,9 @@ import { NotificationsModule } from '../notifications/notifications.module';
     JwtModule.register({
       global: true,
       secret: jwtConstants.secret,
-      signOptions: { expiresIn: '30d' }, // 30 días para desarrollo
+      // 30 días es razonable para una app móvil (evita re-login constante) ahora
+      // que la expiración SÍ se valida (antes se ignoraba y no caducaba nunca).
+      signOptions: { expiresIn: '30d' },
     }),
     forwardRef(() => NotificationsModule),
   ],
