@@ -9,6 +9,9 @@ export enum ReportType {
   FAKE_LISTING = 'fake_listing',
   ABUSIVE_BEHAVIOR = 'abusive_behavior',
   SCAM = 'scam',
+  // Notificación de infracción de derechos de autor: es la vía por la que el
+  // titular pide el retiro (ver politica-copyright.md).
+  COPYRIGHT = 'copyright',
   OTHER = 'other'
 }
 
@@ -22,7 +25,10 @@ export enum ReportStatus {
 export enum ReportableType {
   PET = 'pet',
   COMMENT = 'comment',
-  USER = 'user'
+  USER = 'user',
+  // Respuesta del asistente de IA. Google Play obliga a que el usuario pueda
+  // reportar contenido generado por IA que sea ofensivo o peligroso.
+  AI_RESPONSE = 'ai_response'
 }
 
 @Entity({ name: 'reports' })

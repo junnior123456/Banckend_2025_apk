@@ -25,23 +25,30 @@ export class ReportsService {
   async createReport(createReportDto: CreateReportDto, reporterId: number): Promise<Report> {
     const { reportableType, reportableId, ...reportData } = createReportDto;
 
-    // Verificar que la entidad reportada existe
-    await this.validateReportableEntity(reportableType, reportableId);
+    // Una respuesta del asistente NO es una fila de la base de datos: no tiene
+    // id, no tiene dueño, y el usuario puede reportar tantas como quiera. Las
+    // tres comprobaciones de abajo asumen una entidad real, así que se saltan.
+    const esRespuestaIa = reportableType === ReportableType.AI_RESPONSE;
 
-    // Verificar que el usuario no esté reportando su propio contenido
-    await this.validateNotSelfReport(reportableType, reportableId, reporterId);
+    if (!esRespuestaIa) {
+      // Verificar que la entidad reportada existe
+      await this.validateReportableEntity(reportableType, reportableId);
 
-    // Verificar que el usuario no haya reportado ya esta entidad
-    const existingReport = await this.reportRepository.findOne({
-      where: {
-        reporterId,
-        reportableType,
-        reportableId,
-      },
-    });
+      // Verificar que el usuario no esté reportando su propio contenido
+      await this.validateNotSelfReport(reportableType, reportableId, reporterId);
 
-    if (existingReport) {
-      throw new BadRequestException('Ya has reportado este contenido anteriormente');
+      // Verificar que el usuario no haya reportado ya esta entidad
+      const existingReport = await this.reportRepository.findOne({
+        where: {
+          reporterId,
+          reportableType,
+          reportableId,
+        },
+      });
+
+      if (existingReport) {
+        throw new BadRequestException('Ya has reportado este contenido anteriormente');
+      }
     }
 
     // Crear el reporte
