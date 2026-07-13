@@ -45,8 +45,8 @@ async function bootstrap() {
           formAction: ["'none'"],
         },
       },
-      // El transporte es HTTP plano: el navegador ignoraría HSTS y sólo daría
-      // una falsa sensación de cifrado. Activar al migrar a TLS.
+      // HSTS lo pone nginx en el bloque 443 (y sólo ahí, que es donde tiene
+      // sentido). Aquí se desactiva para no emitir la cabecera por duplicado.
       hsts: false,
       referrerPolicy: { policy: 'no-referrer' },
       crossOriginResourcePolicy: { policy: 'same-origin' },
