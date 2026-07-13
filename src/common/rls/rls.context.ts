@@ -29,12 +29,19 @@ export async function aplicarContexto(
 ): Promise<void> {
   // set_config(..., true) = LOCAL: sólo vive dentro de esta transacción, así que
   // no puede filtrarse a la siguiente petición que reutilice la conexión.
-  await qr.query('SELECT set_config($1, $2, true)', [
-    'app.user_id',
-    userId === null || userId === undefined ? '' : String(userId),
-  ]);
-  await qr.query('SELECT set_config($1, $2, true)', ['app.roles', (roles || []).join(',')]);
-  await qr.query('SELECT set_config($1, $2, true)', ['app.system', system ? 'on' : 'off']);
+  // Las tres van en UNA sola consulta: cada ida y vuelta a Postgres se paga en
+  // latencia, y tres seguidas hundían el rendimiento de las rutas baratas.
+  await qr.query(
+    'SELECT set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true)',
+    [
+      'app.user_id',
+      userId === null || userId === undefined ? '' : String(userId),
+      'app.roles',
+      (roles || []).join(','),
+      'app.system',
+      system ? 'on' : 'off',
+    ],
+  );
 }
 
 /**

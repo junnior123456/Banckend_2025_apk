@@ -37,6 +37,13 @@ export class RlsInterceptor implements NestInterceptor, OnModuleInit {
     const userId: number | null = req.user?.userId ?? null;
     const roles: string[] = req.user?.roles ?? [];
 
+    // Sin usuario (login, registro, feed público, health) no hay contexto que
+    // fijar, así que la transacción sólo costaría latencia. La seguridad no
+    // cambia: sin `app.user_id`, las políticas deniegan las tablas protegidas
+    // igualmente (deniegan por defecto). Una petición anónima nunca debe llegar
+    // a un documento clínico, y si lo intenta, se va con cero filas.
+    if (userId === null) return next.handle();
+
     return from(this.ejecutar(userId, roles, next));
   }
 
