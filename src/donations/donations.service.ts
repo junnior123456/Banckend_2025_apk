@@ -152,7 +152,12 @@ export class DonationsService {
       .addSelect('user.name', 'userName')
       .addSelect('user.email', 'userEmail')
       .where('donation.status = :status', { status: DonationStatus.COMPLETED })
+      // Postgres exige que TODA columna seleccionada sin agregar esté en el
+      // GROUP BY (MySQL lo toleraba: resto de la migración, igual que el
+      // orderBy sin comillas de abajo, que Postgres plegaba a "totalamount").
       .groupBy('donation.userId')
+      .addGroupBy('user.name')
+      .addGroupBy('user.email')
       .orderBy('"totalAmount"', 'DESC')
       .limit(limit)
       .getRawMany();
