@@ -2,8 +2,9 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { RlsInterceptor } from './common/rls/rls.interceptor';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -176,6 +177,9 @@ import { VetRequest } from './vet-requests/vet-request.entity';
     AppService,
     // El límite por IP se aplica a toda la API, no ruta por ruta.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Cada petición corre en su transacción, con la identidad del usuario fijada
+    // en la sesión de PostgreSQL: es lo que leen las políticas de RLS.
+    { provide: APP_INTERCEPTOR, useClass: RlsInterceptor },
   ],
 })
 export class AppModule {

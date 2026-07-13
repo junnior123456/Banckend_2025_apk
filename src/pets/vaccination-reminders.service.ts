@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, In, Repository } from 'typeorm';
+import { ejecutarComoSistema } from '../common/rls/rls.context';
 import { PetVaccination } from './pet-vaccination.entity';
 import { Pet } from './pet.entity';
 import { ReminderKind, VaccineReminderLog } from './vaccine-reminder.entity';
@@ -44,6 +45,7 @@ export class VaccinationRemindersService {
     @InjectRepository(VaccineReminderLog)
     private readonly logRepo: Repository<VaccineReminderLog>,
     private readonly notifications: NotificationsService,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   /** El servidor corre en UTC; sin `timeZone` esto dispararía a las 3 de la mañana. */
@@ -57,7 +59,9 @@ export class VaccinationRemindersService {
       return;
     }
 
-    const result = await this.run(false);
+    // El cron no tiene usuario. Sin contexto de sistema, las políticas de RLS le
+    // devolverían cero vacunas y los recordatorios morirían en silencio.
+    const result = await ejecutarComoSistema(this.dataSource, () => this.run(false));
     this.logger.log(
       `Recordatorios de vacunas: ${result.sent} enviados, ${result.skipped} ya avisados (${result.scanned} vacunas revisadas)`,
     );
