@@ -1,6 +1,6 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { User } from './user.entity';
 import { CreateUserDto } from './dto/create-user-dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -8,10 +8,85 @@ import { uploadToFirebase } from 'src/util/cloud_storage';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
+
+  /**
+   * Borra la cuenta del usuario y todo lo suyo. Google Play lo exige a toda app
+   * con registro, y la Ley 29733 lo llama derecho de cancelación.
+   *
+   * Corre dentro de la transacción de la petición (el interceptor de RLS ya la
+   * abrió), así que o se borra todo o no se borra nada.
+   *
+   * Se eleva a contexto de sistema porque hay que tocar filas de OTROS usuarios:
+   * las notificaciones del tipo "fulano comentó tu publicación" viven en el buzón
+   * ajeno, y las políticas de RLS —con razón— no dejan al usuario tocarlas.
+   */
+  async deleteOwnAccount(userId: number): Promise<{ ok: boolean; message: string }> {
+    const em = this.dataSource.manager;
+
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new HttpException('Usuario no encontrado', HttpStatus.NOT_FOUND);
+    }
+
+    // Elevación deliberada y acotada a esta transacción (SET LOCAL).
+    await em.query("SELECT set_config('app.system', 'on', true)");
+
+    const mascotas = `(SELECT id FROM pets WHERE "userId" = $1)`;
+
+    // 1) Todo lo que cuelga de SUS mascotas.
+    await em.query(
+      `DELETE FROM vaccine_reminder_log WHERE "vaccinationId" IN
+         (SELECT id FROM pet_vaccinations WHERE "petId" IN ${mascotas})`,
+      [userId],
+    );
+    for (const tabla of [
+      'pet_vaccinations',
+      'pet_weights',
+      'pet_allergies',
+      'pet_medications',
+      'pet_medical_records',
+      'pet_document',
+      'pet_images',
+      'pet_like',
+      'comments',
+      'adoption_requests',
+      'notifications',
+      'pet_transfer',
+    ]) {
+      await em.query(`DELETE FROM ${tabla} WHERE "petId" IN ${mascotas}`, [userId]);
+    }
+
+    // 2) Lo suyo repartido por otras tablas.
+    await em.query(`DELETE FROM comments WHERE "userId" = $1`, [userId]);
+    await em.query(`DELETE FROM pet_like WHERE "userId" = $1`, [userId]);
+    await em.query(`DELETE FROM adoption_requests WHERE "adopterId" = $1`, [userId]);
+    await em.query(`DELETE FROM notifications WHERE "userId" = $1 OR "fromUserId" = $1`, [userId]);
+    await em.query(`DELETE FROM donations WHERE "userId" = $1`, [userId]);
+    await em.query(`DELETE FROM reports WHERE "reporterId" = $1`, [userId]);
+    // Los reportes que él MODERÓ no se borran (son de otros): se desvincula.
+    await em.query(`UPDATE reports SET "reviewedById" = NULL WHERE "reviewedById" = $1`, [userId]);
+    await em.query(`DELETE FROM veterinaria WHERE "ownerUserId" = $1`, [userId]);
+    await em.query(`DELETE FROM vet_request WHERE "userId" = $1`, [userId]);
+    await em.query(
+      `DELETE FROM pet_transfer WHERE "fromUserId" = $1 OR "toUserId" = $1`,
+      [userId],
+    );
+
+    // 3) Sus mascotas, sus roles y él.
+    await em.query(`DELETE FROM pets WHERE "userId" = $1`, [userId]);
+    await em.query(`DELETE FROM user_has_roles WHERE id_user = $1`, [userId]);
+    await em.query(`DELETE FROM users WHERE id = $1`, [userId]);
+
+    this.logger.log(`Cuenta ${userId} eliminada a petición del propio usuario`);
+    return { ok: true, message: 'Tu cuenta y tus datos han sido eliminados' };
+  }
 
   // 🔹 Crear usuario
 // 🔹 Crear usuario con rol por defecto

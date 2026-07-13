@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseFilePipe,
@@ -48,6 +49,22 @@ export class UsersController {
       'No autorizado sobre este usuario',
       HttpStatus.FORBIDDEN,
     );
+  }
+
+  /**
+   * 🔹 Borrar la PROPIA cuenta y todos sus datos.
+   *
+   * Google Play lo exige a toda app con registro, y la Ley 29733 lo llama
+   * derecho de cancelación. Va declarado ANTES que las rutas con `:id` para que
+   * "me" no se interprete como un identificador.
+   *
+   * Nadie puede borrar la cuenta de otro por aquí: el id sale del token, no de
+   * la URL.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Delete('me')
+  deleteOwnAccount(@Req() req: any) {
+    return this.userService.deleteOwnAccount(Number(req.user.userId));
   }
 
   // 🔹 Listar todos los usuarios — SOLO ADMIN
