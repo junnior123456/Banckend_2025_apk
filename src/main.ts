@@ -67,7 +67,10 @@ async function bootstrap() {
       // aplica ahí; a esos clientes los frenan el JWT y el rate limiting.
       if (!origin) return callback(null, true);
       if (origins.includes(origin)) return callback(null, true);
-      return callback(new Error(`Origen no autorizado: ${origin}`), false);
+      // Rechazo limpio: se responde SIN la cabecera Access-Control-Allow-Origin
+      // y el navegador bloquea la respuesta. Lanzar un Error aquí daría un 500,
+      // que ensucia los logs y convierte un rechazo esperado en una avería.
+      return callback(null, false);
     },
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
