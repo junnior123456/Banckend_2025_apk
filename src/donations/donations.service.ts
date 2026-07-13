@@ -153,7 +153,7 @@ export class DonationsService {
       .addSelect('user.email', 'userEmail')
       .where('donation.status = :status', { status: DonationStatus.COMPLETED })
       .groupBy('donation.userId')
-      .orderBy('totalAmount', 'DESC')
+      .orderBy('"totalAmount"', 'DESC')
       .limit(limit)
       .getRawMany();
 

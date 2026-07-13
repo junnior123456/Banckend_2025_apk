@@ -21,6 +21,24 @@ import { UpdateReportDto } from './dto/update-report.dto';
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
+  /**
+   * El JWT guarda los roles como IDs ('1'=ADMIN, '2'=CLIENT, '3'=VET).
+   *
+   * Los endpoints /admin/* llevaban un `// TODO: Verificar que el usuario es
+   * administrador` que nunca se hizo: con el guard de clase bastaba con estar
+   * autenticado, así que CUALQUIER cliente podía listar todos los reportes de
+   * la plataforma (quién denunció qué y a quién).
+   */
+  private assertAdmin(req: any): void {
+    const roles: string[] = req.user?.roles ?? [];
+    if (!roles.includes('1')) {
+      throw new HttpException(
+        { ok: false, message: 'Solo el administrador puede ver los reportes' },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+  }
+
   // Crear nuevo reporte
   @Post()
   async createReport(
@@ -40,6 +58,8 @@ export class ReportsController {
         data: result,
       };
     } catch (error) {
+      // Un 403 (o un 404) no debe degradarse a 400: se respeta el codigo original.
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         {
           ok: false,
@@ -70,6 +90,8 @@ export class ReportsController {
         data: result,
       };
     } catch (error) {
+      // Un 403 (o un 404) no debe degradarse a 400: se respeta el codigo original.
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         {
           ok: false,
@@ -95,6 +117,8 @@ export class ReportsController {
         data: result,
       };
     } catch (error) {
+      // Un 403 (o un 404) no debe degradarse a 400: se respeta el codigo original.
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         {
           ok: false,
@@ -117,7 +141,7 @@ export class ReportsController {
     @Query('type') type?: string,
   ) {
     try {
-      // TODO: Verificar que el usuario es administrador
+      this.assertAdmin(req);
       const result = await this.reportsService.getAllReports(
         parseInt(page),
         parseInt(limit),
@@ -130,6 +154,8 @@ export class ReportsController {
         data: result,
       };
     } catch (error) {
+      // Un 403 (o un 404) no debe degradarse a 400: se respeta el codigo original.
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         {
           ok: false,
@@ -148,7 +174,7 @@ export class ReportsController {
     @Request() req: any,
   ) {
     try {
-      // TODO: Verificar que el usuario es administrador
+      this.assertAdmin(req);
       const adminId = req.user.userId;
       const result = await this.reportsService.updateReportStatus(
         parseInt(id),
@@ -162,6 +188,8 @@ export class ReportsController {
         data: result,
       };
     } catch (error) {
+      // Un 403 (o un 404) no debe degradarse a 400: se respeta el codigo original.
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         {
           ok: false,
@@ -176,7 +204,7 @@ export class ReportsController {
   @Get('admin/stats')
   async getReportStats(@Request() req: any) {
     try {
-      // TODO: Verificar que el usuario es administrador
+      this.assertAdmin(req);
       const result = await this.reportsService.getReportStats();
       
       return {
@@ -184,6 +212,8 @@ export class ReportsController {
         data: result,
       };
     } catch (error) {
+      // Un 403 (o un 404) no debe degradarse a 400: se respeta el codigo original.
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         {
           ok: false,
@@ -202,7 +232,7 @@ export class ReportsController {
     @Query('limit') limit: string = '10',
   ) {
     try {
-      // TODO: Verificar que el usuario es administrador
+      this.assertAdmin(req);
       const result = await this.reportsService.getPendingReports(
         parseInt(page),
         parseInt(limit),
@@ -213,6 +243,8 @@ export class ReportsController {
         data: result,
       };
     } catch (error) {
+      // Un 403 (o un 404) no debe degradarse a 400: se respeta el codigo original.
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         {
           ok: false,
