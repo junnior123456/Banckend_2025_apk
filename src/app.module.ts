@@ -63,8 +63,14 @@ import { VetRequest } from './vet-requests/vet-request.entity';
     // capacidad: mil usuarios distintos siguen pudiendo registrarse en paralelo.
     // Frena al abusador (fuerza bruta, scraping, bot de registros masivos).
     // Los límites estrictos de /auth se aplican con @Throttle en su controlador.
+    // El límite se puede subir por entorno (THROTTLE_LIMIT) para medir la
+    // capacidad real del servidor sin que el propio limitador falsee la prueba.
     ThrottlerModule.forRoot([
-      { name: 'default', ttl: 60_000, limit: 240 }, // navegación normal del feed
+      {
+        name: 'default',
+        ttl: 60_000,
+        limit: Number(process.env.THROTTLE_LIMIT || 240), // navegación normal del feed
+      },
     ]),
 
     // 💾 Conexión a base de datos
