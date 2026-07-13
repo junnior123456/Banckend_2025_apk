@@ -105,8 +105,13 @@ import { VetRequest } from './vet-requests/vet-request.entity';
               VaccineReminderLog,
               PetTransfer,
             ],
-            // Sincronizar para crear tablas nuevas automáticamente
-            synchronize: true,
+            // ⛔ synchronize NO va en producción. Compara el esquema con las
+            // entidades y "corrige" la diferencia: borró los 13 índices de
+            // rendimiento creados a mano (no están en el código) en el primer
+            // reinicio. Además, con pm2 en cluster los 2 procesos sincronizan a
+            // la vez y chocan. Y puede alterar columnas con datos dentro.
+            // Para crear tablas nuevas: DB_SYNC=true una vez, o una migración.
+            synchronize: process.env.DB_SYNC === 'true',
             logging: process.env.NODE_ENV !== 'production',
             ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
             extra: {
