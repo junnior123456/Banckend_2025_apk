@@ -6,7 +6,7 @@ import { User } from '../users/user.entity';
 import { Pet } from '../pets/pet.entity';
 import { AdoptionRequest } from '../adoption/adoption-request.entity';
 import { PushNotificationService } from './push-notification.service';
-import { ejecutarComoSistema } from '../common/rls/rls.context';
+import { ejecutarComoSistema, rlsStorage } from '../common/rls/rls.context';
 
 @Injectable()
 export class NotificationsService {
@@ -24,20 +24,40 @@ export class NotificationsService {
   ) {}
 
   /**
-   * Guarda notificaciones en CONTEXTO DE SISTEMA.
+   * Ejecuta `fn` con `app.system = on` en la transacción ACTUAL (la de la
+   * petición o la del cron), restaurando el valor previo al terminar.
    *
-   * Las notificaciones se crean PARA OTROS usuarios (te comentan, te piden en
-   * adopción, difusión comunitaria...). El INSERT en sí lo permite la política
+   * Por qué: las notificaciones se crean PARA OTROS usuarios (te comentan, te
+   * piden en adopción, difusión comunitaria...). El INSERT lo permite la política
    * (`WITH CHECK true`), pero TypeORM añade `RETURNING`, y Postgres aplica la
    * política de SELECT a la fila devuelta: como es de OTRO usuario, la relectura
-   * falla (42501) y **aborta toda la transacción de la petición**. Ejecutarlo
-   * como sistema (en su propia transacción) hace que `app_is_system()` satisfaga
-   * esa relectura y no contamina la transacción de la petición.
+   * falla (42501) y aborta la transacción, con lo que el write principal
+   * (adopción, donación...) se pierde en el rollback.
+   *
+   * Se hace en la MISMA transacción (no en una aparte) para que las FK a filas
+   * recién creadas y aún sin commit —p.ej. `adoptionRequestId`— resuelvan y todo
+   * sea atómico. Se restaura `app.system` a su valor previo para no dejar el cron
+   * (que ya corre como sistema) en un estado incorrecto. Si no hay transacción en
+   * curso, se abre una propia de sistema.
    */
+  private async _comoSistema<T>(fn: () => Promise<T>): Promise<T> {
+    const store = rlsStorage.getStore();
+    if (!store?.queryRunner) {
+      return ejecutarComoSistema(this.dataSource, fn);
+    }
+    const qr = store.queryRunner;
+    const rows = await qr.query("SELECT current_setting('app.system', true) AS v");
+    const previo = rows?.[0]?.v === 'on' ? 'on' : 'off';
+    await qr.query("SELECT set_config('app.system', 'on', true)");
+    try {
+      return await fn();
+    } finally {
+      await qr.query('SELECT set_config($1, $2, true)', ['app.system', previo]);
+    }
+  }
+
   private _saveSys(entities: any): Promise<any> {
-    return ejecutarComoSistema(this.dataSource, () =>
-      this.notificationRepository.save(entities),
-    );
+    return this._comoSistema(() => this.notificationRepository.save(entities));
   }
 
   // Obtener notificaciones del usuario con paginación
@@ -511,7 +531,7 @@ export class NotificationsService {
     try {
       // Como sistema: al borrar una mascota hay que limpiar las notificaciones
       // de TODOS los usuarios sobre ella, no solo las del dueño que la borra.
-      await ejecutarComoSistema(this.dataSource, () =>
+      await this._comoSistema(() =>
         this.notificationRepository.delete({ petId }),
       );
       console.log(`✅ Notificaciones eliminadas para mascota ID: ${petId}`);
