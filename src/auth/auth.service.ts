@@ -8,6 +8,7 @@ import { compare, hash } from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { Rol } from 'src/roles/rol.entity';
 import { randomBytes } from 'crypto';
+import { createTransport } from 'nodemailer';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
@@ -154,18 +155,62 @@ export class AuthService {
 
         const resetLink = `pawfinder://reset-password?token=${token}`;
 
-        console.log('🔐 Token de reseteo generado para:', email);
-        console.log('🔗 Link de reseteo:', resetLink);
-        console.log('⏰ Expira en:', expires);
+        // El token se ENTREGA POR CORREO al dueño de la cuenta. NUNCA se devuelve
+        // en la respuesta: hacerlo permitía tomar cualquier cuenta con solo su
+        // email (quien pedía el reseteo recibía el token aunque no fuera suyo).
+        await this.enviarCorreoReseteo(user.email, resetLink, token);
 
+        // Respuesta genérica idéntica exista o no el correo: no filtrar qué
+        // emails están registrados.
         return {
             success: true,
             message: 'Si el correo está registrado, recibirás instrucciones para recuperar tu contraseña.',
-            // 👇 Para desarrollo/demo
-            tokenDemo: token,
-            resetLinkDemo: resetLink,
-            expiresAt: expires,
         };
+    }
+
+    /**
+     * Envía el enlace de reseteo por correo (Gmail SMTP vía nodemailer).
+     * Config en .env: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM.
+     * Si no está configurado, NO se cae el flujo: se registra un aviso y la
+     * petición responde igual (genérica). Así el reseteo queda seguro desde ya
+     * y empieza a entregar en cuanto se rellenen las credenciales.
+     */
+    private async enviarCorreoReseteo(to: string, resetLink: string, token: string): Promise<void> {
+        const host = process.env.SMTP_HOST;
+        const user = process.env.SMTP_USER;
+        const pass = process.env.SMTP_PASS;
+        if (!host || !user || !pass) {
+            console.warn('⚠️  SMTP no configurado: no se pudo enviar el correo de reseteo. Rellenar SMTP_* en .env.');
+            return;
+        }
+        try {
+            const port = Number(process.env.SMTP_PORT) || 587;
+            const transport = createTransport({
+                host,
+                port,
+                secure: port === 465, // 465 = TLS directo; 587 = STARTTLS
+                auth: { user, pass },
+            });
+            await transport.sendMail({
+                from: process.env.SMTP_FROM || `PawFinder <${user}>`,
+                to,
+                subject: 'Recupera tu contraseña de PawFinder',
+                text:
+                    `Recibimos una solicitud para restablecer tu contraseña.\n\n` +
+                    `Abre este enlace desde tu móvil con PawFinder instalado:\n${resetLink}\n\n` +
+                    `O introduce este código en la app:\n${token}\n\n` +
+                    `El enlace caduca en 1 hora. Si no fuiste tú, ignora este correo.`,
+                html:
+                    `<p>Recibimos una solicitud para restablecer tu contraseña.</p>` +
+                    `<p><a href="${resetLink}">Restablecer mi contraseña</a></p>` +
+                    `<p>O introduce este código en la app:<br><code>${token}</code></p>` +
+                    `<p>El enlace caduca en 1 hora. Si no fuiste tú, ignora este correo.</p>`,
+            });
+            console.log('📧 Correo de reseteo enviado a:', to);
+        } catch (e) {
+            // No revelar al cliente si el envío falló (podría delatar el email).
+            console.error('❌ Error enviando correo de reseteo:', e?.message || e);
+        }
     }
 
     // 🔄 Resetear contraseña con token
