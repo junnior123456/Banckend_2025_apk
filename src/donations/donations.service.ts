@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Donation, DonationStatus } from './donation.entity';
 import { CreateDonationDto } from './dto/create-donation.dto';
 import { UpdateDonationDto } from './dto/update-donation.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ejecutarComoSistema } from '../common/rls/rls.context';
 
 @Injectable()
 export class DonationsService {
@@ -13,6 +14,7 @@ export class DonationsService {
     private donationRepository: Repository<Donation>,
     @Inject(forwardRef(() => NotificationsService))
     private readonly notificationsService: NotificationsService,
+    private readonly dataSource: DataSource,
   ) {}
 
   // 💰 Crear nueva donación
@@ -99,7 +101,10 @@ export class DonationsService {
   }
 
   // 📊 Obtener estadísticas públicas
+  // Endpoint SIN JWT: sin contexto RLS, las políticas de `donations` no
+  // devolverían filas. Se ejecuta como sistema (sólo lectura de agregados).
   async getStats(): Promise<any> {
+    return ejecutarComoSistema(this.dataSource, async () => {
     const donations = await this.donationRepository.find({
       where: { status: DonationStatus.COMPLETED },
     });
@@ -129,20 +134,24 @@ export class DonationsService {
       monthlyTotals,
       paymentMethodCounts,
     };
+    });
   }
 
   // 🎯 Obtener donaciones recientes (públicas)
   async getRecent(limit: number = 10): Promise<Donation[]> {
-    return this.donationRepository.find({
-      where: { status: DonationStatus.COMPLETED },
-      order: { completedAt: 'DESC' },
-      take: limit,
-      relations: ['user'],
-    });
+    return ejecutarComoSistema(this.dataSource, async () =>
+      this.donationRepository.find({
+        where: { status: DonationStatus.COMPLETED },
+        order: { completedAt: 'DESC' },
+        take: limit,
+        relations: ['user'],
+      }),
+    );
   }
 
-  // 🏆 Obtener top donadores
+  // 🏆 Obtener top donadores (público)
   async getTopDonors(limit: number = 5): Promise<any[]> {
+    return ejecutarComoSistema(this.dataSource, async () => {
     const result = await this.donationRepository
       .createQueryBuilder('donation')
       .select('donation.userId', 'userId')
@@ -167,6 +176,7 @@ export class DonationsService {
       totalAmount: parseFloat(row.totalAmount),
       donationCount: parseInt(row.donationCount),
     }));
+    });
   }
 
   // 🗑️ Eliminar donación (solo admin)

@@ -90,6 +90,13 @@ export class TransfersService {
     opts: TransferOptions = {},
   ) {
     return this.dataSource.transaction(async (manager) => {
+      // Esta transacción usa su PROPIO queryRunner, que no pasa por el
+      // interceptor que fija app.user_id. Con RLS activo en `pet_transfer`, el
+      // INSERT del traspaso se denegaría (sin contexto = deniega). Se marca como
+      // sistema SÓLO dentro de esta transacción (LOCAL): la autorización real ya
+      // se comprobó arriba (dueño o admin) antes de llegar aquí.
+      await manager.query("SELECT set_config('app.system', 'on', true)");
+
       const pet = await manager.findOne(Pet, { where: { id: petId } });
       if (!pet) throw new HttpException('Mascota no encontrada', HttpStatus.NOT_FOUND);
 
