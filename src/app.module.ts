@@ -27,6 +27,7 @@ import { VeterinariasModule } from './veterinarias/veterinarias.module';
 import { VetRequestsModule } from './vet-requests/vet-requests.module';
 import { PawmatchModule } from './pawmatch/pawmatch.module'; // 🐶 Árbol de decisión adoptante↔perro
 import { ChatModule } from './chat/chat.module'; // 💬 Chat entre usuarios
+import { AppointmentsModule } from './appointments/appointments.module'; // 🗓️ Citas con veterinarios
 
 // === Entidades PawFinder ===
 import { User } from './users/user.entity';
@@ -52,6 +53,7 @@ import { Veterinaria } from './veterinarias/veterinaria.entity';
 import { VetRequest } from './vet-requests/vet-request.entity';
 import { Conversation } from './chat/entities/conversation.entity';
 import { Message } from './chat/entities/message.entity';
+import { Appointment } from './appointments/appointment.entity';
 
 @Module({
   imports: [
@@ -102,6 +104,7 @@ import { Message } from './chat/entities/message.entity';
               VetRequest,
               Conversation,
               Message,
+              Appointment,
               PetVaccination,
               PetWeight,
               PetAllergy,
@@ -154,6 +157,7 @@ import { Message } from './chat/entities/message.entity';
               VetRequest,
               Conversation,
               Message,
+              Appointment,
               PetVaccination,
               PetWeight,
               PetAllergy,
@@ -186,6 +190,7 @@ import { Message } from './chat/entities/message.entity';
     VetRequestsModule,
     PawmatchModule, // 🐶 Compatibilidad adoptante↔perro (árbol de decisión)
     ChatModule, // 💬 Chat entre usuarios (adopción y consultas vet)
+    AppointmentsModule, // 🗓️ Citas/reservas con veterinarios
   ],
   controllers: [AppController],
   providers: [
