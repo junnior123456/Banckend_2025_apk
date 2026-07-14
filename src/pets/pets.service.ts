@@ -174,13 +174,23 @@ export class PetsService {
     return pet;
   }
 
-  // Actualizar mascota
-  async update(id: number, updatePetDto: UpdatePetDto, file?: Express.Multer.File): Promise<Pet> {
+  // Actualizar mascota — sólo el dueño (o un admin) puede editarla.
+  async update(
+    id: number,
+    updatePetDto: UpdatePetDto,
+    userId: number,
+    isAdmin = false,
+    file?: Express.Multer.File,
+  ): Promise<Pet> {
     try {
       const pet = await this.petRepository.findOne({ where: { id } });
-      
+
       if (!pet) {
         throw new NotFoundException('Mascota no encontrada');
+      }
+
+      if (pet.userId !== userId && !isAdmin) {
+        throw new ForbiddenException('No puedes editar una publicación que no es tuya');
       }
 
       if (file) {
@@ -191,20 +201,27 @@ export class PetsService {
       Object.assign(pet, updatePetDto);
       return await this.petRepository.save(pet);
     } catch (error) {
+      // No enmascarar "no encontrada"/"prohibido" como 500: son respuestas
+      // legítimas (404/403) que el cliente necesita distinguir de un fallo real.
+      if (error instanceof HttpException) throw error;
       console.error('Error updating pet:', error);
       throw new HttpException('Error al actualizar mascota', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
-  // Eliminar mascota
-  async remove(id: number): Promise<{ message: string }> {
+  // Eliminar mascota — sólo el dueño (o un admin) puede borrarla.
+  async remove(id: number, userId: number, isAdmin = false): Promise<{ message: string }> {
     try {
       const pet = await this.petRepository.findOne({ where: { id } });
-      
+
       if (!pet) {
         throw new NotFoundException('Mascota no encontrada');
       }
-      
+
+      if (pet.userId !== userId && !isAdmin) {
+        throw new ForbiddenException('No puedes eliminar una publicación que no es tuya');
+      }
+
       // Eliminar notificaciones asociadas primero
       await this.notificationsService.deleteNotificationsByPetId(id);
       
@@ -217,6 +234,7 @@ export class PetsService {
       console.log(`✅ Mascota eliminada: ID ${id}, Nombre: ${pet.name}`);
       return { message: 'Mascota eliminada exitosamente' };
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       console.error('Error eliminando mascota:', error);
       throw new HttpException('Error al eliminar mascota', HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -311,11 +329,11 @@ export class PetsService {
         .where('pet.isActive = :isActive', { isActive: true });
 
       if (searchDto.name) {
-        query.andWhere('pet.name LIKE :name', { name: `%${searchDto.name}%` });
+        query.andWhere('pet.name ILIKE :name', { name: `%${searchDto.name}%` });
       }
 
       if (searchDto.breed) {
-        query.andWhere('pet.breed LIKE :breed', { breed: `%${searchDto.breed}%` });
+        query.andWhere('pet.breed ILIKE :breed', { breed: `%${searchDto.breed}%` });
       }
 
       if (searchDto.categoryId) {

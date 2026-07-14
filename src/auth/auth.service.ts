@@ -43,15 +43,12 @@ export class AuthService {
             // Contar usuarios existentes para determinar el rol
             const totalUsers = await this.userRepository.count();
             
-            let rolesIds = [];
-            
-            if (user.rolesIds !== undefined && user.rolesIds !== null) { 
-                // Si se especifican roles manualmente
-                rolesIds = user.rolesIds;
-            } else {
-                // Lógica automática: primer usuario = ADMIN, resto = CLIENT
-                rolesIds.push(totalUsers === 1 ? '1' : '2'); // 1=ADMIN, 2=CLIENT
-            }
+            // El rol NUNCA se toma del cuerpo del registro: dejar que el cliente
+            // mande `rolesIds` era una escalada directa a ADMIN. El registro
+            // público siempre asigna el rol automático: primer usuario = ADMIN
+            // (arranque del sistema), el resto = CLIENT. Cambiar de rol es una
+            // acción de administrador, por otra ruta autenticada.
+            const rolesIds: string[] = [totalUsers === 1 ? '1' : '2']; // 1=ADMIN, 2=CLIENT
             
             const roles = await this.rolesRepository.findBy({ id: In(rolesIds) });
             userSaved.roles = roles;

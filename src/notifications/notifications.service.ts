@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan } from 'typeorm';
+import { Repository, LessThan, MoreThanOrEqual } from 'typeorm';
 import { Notification, NotificationType } from './notification.entity';
 import { User } from '../users/user.entity';
 import { Pet } from '../pets/pet.entity';
@@ -556,7 +556,9 @@ export class NotificationsService {
       const adoptionsThisMonth = await this.notificationRepository.count({
         where: {
           type: NotificationType.ADOPTION_COMPLETED,
-          createdAt: startOfMonth as any, // TypeORM maneja esto correctamente
+          // Pasar un Date suelto genera una igualdad exacta (= medianoche del
+          // día 1), que casi nunca casa. Lo correcto es ">= inicio de mes".
+          createdAt: MoreThanOrEqual(startOfMonth),
         },
       });
 

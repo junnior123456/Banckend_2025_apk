@@ -273,7 +273,9 @@ export class ReportsService {
 
     const reportsByMonth = await this.reportRepository
       .createQueryBuilder('report')
-      .select('DATE_FORMAT(report.createdAt, "%Y-%m")', 'month')
+      // Postgres no tiene DATE_FORMAT (era MySQL); y "%Y-%m" entre comillas dobles
+      // es un identificador inválido. TO_CHAR con comilla simple hace lo mismo.
+      .select(`TO_CHAR(report."createdAt", 'YYYY-MM')`, 'month')
       .addSelect('COUNT(*)', 'count')
       .where('report.createdAt >= :sixMonthsAgo', { sixMonthsAgo })
       .groupBy('month')

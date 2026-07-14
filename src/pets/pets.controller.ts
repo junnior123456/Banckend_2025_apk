@@ -167,16 +167,19 @@ export class PetsController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updatePetDto: UpdatePetDto,
+    @Request() req: any,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.petsService.update(id, updatePetDto, file);
+    const isAdmin = (req.user?.roles ?? []).includes('1');
+    return this.petsService.update(id, updatePetDto, req.user.userId, isAdmin, file);
   }
 
   // 🗑️ DELETE /api/pets/:id - Eliminar mascota (requiere autenticación)
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.petsService.remove(id);
+  remove(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    const isAdmin = (req.user?.roles ?? []).includes('1');
+    return this.petsService.remove(id, req.user.userId, isAdmin);
   }
 
   // === NUEVAS FUNCIONALIDADES ===

@@ -60,18 +60,22 @@ export class SearchService {
       .leftJoinAndSelect('pet.images', 'images')
       .where('pet.isActive = :isActive', { isActive: true })
       .andWhere(
-        '(pet.name LIKE :query OR pet.description LIKE :query OR pet.breed LIKE :query)',
+        '(pet.name ILIKE :query OR pet.description ILIKE :query OR pet.breed ILIKE :query)',
         { query: searchTerm }
       )
       .orderBy('pet.createdAt', 'DESC')
       .take(limit)
       .getMany();
 
-    // Buscar usuarios (donantes/adoptantes)
+    // Buscar usuarios (donantes/adoptantes).
+    // Este endpoint es PÚBLICO (sin JWT): proyectar SÓLO campos no sensibles.
+    // Devolver la entidad completa filtraba email/teléfono/dirección de cualquier
+    // usuario a un anónimo buscando por nombre.
     const users = await this.userRepository
       .createQueryBuilder('user')
+      .select(['user.id', 'user.name', 'user.lastname', 'user.image'])
       .where('user.isActive = :isActive', { isActive: true })
-      .andWhere('(user.name LIKE :query OR user.lastname LIKE :query)', 
+      .andWhere('(user.name ILIKE :query OR user.lastname ILIKE :query)',
         { query: searchTerm }
       )
       .take(limit)
@@ -81,7 +85,7 @@ export class SearchService {
     const categories = await this.categoryRepository
       .createQueryBuilder('category')
       .where('category.isActive = :isActive', { isActive: true })
-      .andWhere('category.name LIKE :query', { query: searchTerm })
+      .andWhere('category.name ILIKE :query', { query: searchTerm })
       .take(limit)
       .getMany();
 
@@ -139,17 +143,17 @@ export class SearchService {
     // Aplicar filtros
     if (query) {
       queryBuilder.andWhere(
-        '(pet.name LIKE :query OR pet.description LIKE :query OR pet.breed LIKE :query OR pet.temperament LIKE :query)',
+        '(pet.name ILIKE :query OR pet.description ILIKE :query OR pet.breed ILIKE :query OR pet.temperament ILIKE :query)',
         { query: `%${query}%` }
       );
     }
 
     if (category) {
-      queryBuilder.andWhere('category.name LIKE :category', { category: `%${category}%` });
+      queryBuilder.andWhere('category.name ILIKE :category', { category: `%${category}%` });
     }
 
     if (location) {
-      queryBuilder.andWhere('pet.address LIKE :location', { location: `%${location}%` });
+      queryBuilder.andWhere('pet.address ILIKE :location', { location: `%${location}%` });
     }
 
     if (petType) {
@@ -164,13 +168,13 @@ export class SearchService {
       // Implementar lógica de filtro por edad
       switch (age) {
         case 'young':
-          queryBuilder.andWhere('pet.age LIKE :youngAge', { youngAge: '%mes%' });
+          queryBuilder.andWhere('pet.age ILIKE :youngAge', { youngAge: '%mes%' });
           break;
         case 'adult':
-          queryBuilder.andWhere('pet.age REGEXP :adultAge', { adultAge: '^[1-5] año' });
+          queryBuilder.andWhere('pet.age ~ :adultAge', { adultAge: '^[1-5] año' });
           break;
         case 'senior':
-          queryBuilder.andWhere('pet.age REGEXP :seniorAge', { seniorAge: '^[6-9]|^[1-9][0-9] año' });
+          queryBuilder.andWhere('pet.age ~ :seniorAge', { seniorAge: '^[6-9]|^[1-9][0-9] año' });
           break;
       }
     }
@@ -185,9 +189,9 @@ export class SearchService {
 
     if (hasSpecialNeeds !== undefined) {
       if (hasSpecialNeeds) {
-        queryBuilder.andWhere('pet.specialNeeds IS NOT NULL AND pet.specialNeeds != ""');
+        queryBuilder.andWhere("pet.specialNeeds IS NOT NULL AND pet.specialNeeds <> ''");
       } else {
-        queryBuilder.andWhere('(pet.specialNeeds IS NULL OR pet.specialNeeds = "")');
+        queryBuilder.andWhere("(pet.specialNeeds IS NULL OR pet.specialNeeds = '')");
       }
     }
 
@@ -239,7 +243,7 @@ export class SearchService {
       .createQueryBuilder('pet')
       .select('DISTINCT pet.name', 'name')
       .where('pet.isActive = :isActive', { isActive: true })
-      .andWhere('pet.name LIKE :query', { query: searchTerm })
+      .andWhere('pet.name ILIKE :query', { query: searchTerm })
       .orderBy('pet.name', 'ASC')
       .limit(limit)
       .getRawMany();
@@ -249,8 +253,8 @@ export class SearchService {
       .createQueryBuilder('pet')
       .select('DISTINCT pet.breed', 'breed')
       .where('pet.isActive = :isActive', { isActive: true })
-      .andWhere('pet.breed LIKE :query', { query: searchTerm })
-      .andWhere('pet.breed IS NOT NULL AND pet.breed != ""')
+      .andWhere('pet.breed ILIKE :query', { query: searchTerm })
+      .andWhere("pet.breed IS NOT NULL AND pet.breed <> ''")
       .orderBy('pet.breed', 'ASC')
       .limit(limit)
       .getRawMany();
@@ -260,8 +264,8 @@ export class SearchService {
       .createQueryBuilder('pet')
       .select('DISTINCT pet.address', 'address')
       .where('pet.isActive = :isActive', { isActive: true })
-      .andWhere('pet.address LIKE :query', { query: searchTerm })
-      .andWhere('pet.address IS NOT NULL AND pet.address != ""')
+      .andWhere('pet.address ILIKE :query', { query: searchTerm })
+      .andWhere("pet.address IS NOT NULL AND pet.address <> ''")
       .orderBy('pet.address', 'ASC')
       .limit(limit)
       .getRawMany();
@@ -328,7 +332,7 @@ export class SearchService {
       .createQueryBuilder('pet')
       .select('DISTINCT pet.breed', 'breed')
       .where('pet.isActive = :isActive', { isActive: true })
-      .andWhere('pet.breed IS NOT NULL AND pet.breed != ""')
+      .andWhere("pet.breed IS NOT NULL AND pet.breed <> ''")
       .orderBy('pet.breed', 'ASC')
       .getRawMany();
 
@@ -337,7 +341,7 @@ export class SearchService {
       .createQueryBuilder('pet')
       .select('DISTINCT pet.size', 'size')
       .where('pet.isActive = :isActive', { isActive: true })
-      .andWhere('pet.size IS NOT NULL AND pet.size != ""')
+      .andWhere("pet.size IS NOT NULL AND pet.size <> ''")
       .orderBy('pet.size', 'ASC')
       .getRawMany();
 
@@ -346,7 +350,7 @@ export class SearchService {
       .createQueryBuilder('pet')
       .select('DISTINCT pet.address', 'address')
       .where('pet.isActive = :isActive', { isActive: true })
-      .andWhere('pet.address IS NOT NULL AND pet.address != ""')
+      .andWhere("pet.address IS NOT NULL AND pet.address <> ''")
       .orderBy('pet.address', 'ASC')
       .limit(20) // Limitar ubicaciones para evitar lista muy larga
       .getRawMany();
@@ -356,7 +360,7 @@ export class SearchService {
       .createQueryBuilder('pet')
       .select('DISTINCT pet.temperament', 'temperament')
       .where('pet.isActive = :isActive', { isActive: true })
-      .andWhere('pet.temperament IS NOT NULL AND pet.temperament != ""')
+      .andWhere("pet.temperament IS NOT NULL AND pet.temperament <> ''")
       .orderBy('pet.temperament', 'ASC')
       .getRawMany();
 
@@ -388,7 +392,7 @@ export class SearchService {
       .select('pet.breed', 'breed')
       .addSelect('COUNT(*)', 'count')
       .where('pet.isActive = :isActive', { isActive: true })
-      .andWhere('pet.breed IS NOT NULL AND pet.breed != ""')
+      .andWhere("pet.breed IS NOT NULL AND pet.breed <> ''")
       .groupBy('pet.breed')
       .orderBy('count', 'DESC')
       .limit(10)

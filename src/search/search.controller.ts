@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Body,
+  Param,
   Query,
   HttpStatus,
   HttpException,
@@ -111,7 +112,7 @@ export class SearchController {
   // Buscar mascotas similares
   @Get('pets/:id/similar')
   async findSimilarPets(
-    @Query('id') petId: string,
+    @Param('id') petId: string,
     @Query('limit') limit: string = '5',
   ) {
     try {
@@ -243,7 +244,7 @@ export class SearchController {
   // Búsqueda rápida por categoría
   @Get('pets/category/:categoryName')
   async searchByCategory(
-    @Query('categoryName') categoryName: string,
+    @Param('categoryName') categoryName: string,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
   ) {

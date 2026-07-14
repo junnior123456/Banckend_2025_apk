@@ -22,7 +22,4 @@ export class registerAuthDto{
     @IsString()
     @MinLength(6, {message:'ingrese 6 caracteres'})
     password: string;
-
-    rolesIds: string[];
-    
 }

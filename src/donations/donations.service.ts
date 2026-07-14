@@ -150,14 +150,13 @@ export class DonationsService {
       .addSelect('COUNT(donation.id)', 'donationCount')
       .leftJoin('donation.user', 'user')
       .addSelect('user.name', 'userName')
-      .addSelect('user.email', 'userEmail')
+      // El correo NO sale en un ranking público: bastan nombre e importe.
       .where('donation.status = :status', { status: DonationStatus.COMPLETED })
       // Postgres exige que TODA columna seleccionada sin agregar esté en el
       // GROUP BY (MySQL lo toleraba: resto de la migración, igual que el
       // orderBy sin comillas de abajo, que Postgres plegaba a "totalamount").
       .groupBy('donation.userId')
       .addGroupBy('user.name')
-      .addGroupBy('user.email')
       .orderBy('"totalAmount"', 'DESC')
       .limit(limit)
       .getRawMany();
@@ -165,7 +164,6 @@ export class DonationsService {
     return result.map(row => ({
       userId: row.userId,
       userName: row.userName,
-      userEmail: row.userEmail,
       totalAmount: parseFloat(row.totalAmount),
       donationCount: parseInt(row.donationCount),
     }));
