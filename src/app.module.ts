@@ -25,6 +25,7 @@ import { DonationsModule } from './donations/donations.module';
 import { AiModule } from './ai/ai.module'; // 🤖 Módulo de IA con Google Gemini
 import { VeterinariasModule } from './veterinarias/veterinarias.module';
 import { VetRequestsModule } from './vet-requests/vet-requests.module';
+import { PawmatchModule } from './pawmatch/pawmatch.module'; // 🐶 Árbol de decisión adoptante↔perro
 
 // === Entidades PawFinder ===
 import { User } from './users/user.entity';
@@ -176,6 +177,7 @@ import { VetRequest } from './vet-requests/vet-request.entity';
     AiModule,       // 🤖 IA: Recomendación de perros, cuidado y veterinarias en Tarapoto
     VeterinariasModule,
     VetRequestsModule,
+    PawmatchModule, // 🐶 Compatibilidad adoptante↔perro (árbol de decisión)
   ],
   controllers: [AppController],
   providers: [
