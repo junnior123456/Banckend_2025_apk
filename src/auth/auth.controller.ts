@@ -32,6 +32,13 @@ export class AuthController {
         return this.authService.login(loginData);
     }
 
+    // 🔵 Login/registro con Google (la app manda el idToken de google_sign_in)
+    @Throttle({ default: { limit: lim(15), ttl: 60_000 } })
+    @Post('google') // http://localhost:3000/auth/google -> POST
+    loginGoogle(@Body('idToken') idToken: string) {
+        return this.authService.loginWithGoogle(idToken);
+    }
+
     // 🔍 Verificar si un correo ya existe
     // Enumeración de cuentas: sin límite, permite descubrir qué correos existen.
     @Throttle({ default: { limit: lim(20), ttl: 60_000 } })

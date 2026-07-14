@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Rol } from 'src/roles/rol.entity';
 import { randomBytes } from 'crypto';
 import { createTransport } from 'nodemailer';
+import { OAuth2Client } from 'google-auth-library';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
@@ -211,6 +212,84 @@ export class AuthService {
             // No revelar al cliente si el envío falló (podría delatar el email).
             console.error('❌ Error enviando correo de reseteo:', e?.message || e);
         }
+    }
+
+    // 🔵 Login / registro con Google
+    private googleClient = new OAuth2Client();
+
+    async loginWithGoogle(idToken: string) {
+        const audiencias = [
+            process.env.GOOGLE_WEB_CLIENT_ID,
+            process.env.GOOGLE_ANDROID_CLIENT_ID,
+        ].filter(Boolean) as string[];
+        if (audiencias.length === 0) {
+            throw new HttpException(
+                'El login con Google no está configurado en el servidor',
+                HttpStatus.SERVICE_UNAVAILABLE,
+            );
+        }
+
+        let payload: any;
+        try {
+            const ticket = await this.googleClient.verifyIdToken({
+                idToken,
+                audience: audiencias,
+            });
+            payload = ticket.getPayload();
+        } catch (e) {
+            throw new HttpException('Token de Google inválido', HttpStatus.UNAUTHORIZED);
+        }
+        if (!payload?.email || payload.email_verified === false) {
+            throw new HttpException(
+                'La cuenta de Google no tiene un email verificado',
+                HttpStatus.UNAUTHORIZED,
+            );
+        }
+
+        const email = String(payload.email).toLowerCase().trim();
+        let user = await this.userRepository.findOne({
+            where: { email },
+            relations: ['roles'],
+        });
+
+        // Primer login con Google de un email nuevo → se crea la cuenta (rol CLIENT).
+        if (!user) {
+            const totalUsers = await this.userRepository.count();
+            const nuevo = this.userRepository.create({
+                name: payload.given_name || payload.name || 'Usuario',
+                lastname: payload.family_name || '',
+                email,
+                phone: null, // Google no da teléfono; la columna es única pero nullable
+                image: payload.picture || null,
+                // Contraseña aleatoria: la cuenta entra por Google, no por contraseña.
+                password: await hash(
+                    randomBytes(24).toString('hex'),
+                    Number(process.env.HASH_SALT) || 10,
+                ),
+                isActive: true,
+            });
+            user = await this.userRepository.save(nuevo);
+
+            const rolId = totalUsers === 0 ? '1' : '2'; // 1=ADMIN (primer usuario), 2=CLIENT
+            user.roles = await this.rolesRepository.findBy({ id: In([rolId]) });
+            await this.userRepository.save(user);
+
+            try {
+                await this.notificationsService.sendWelcomeNotification(user.id, user.name);
+            } catch {
+                /* la bienvenida no debe tumbar el login */
+            }
+        }
+
+        const rolesIds = user.roles.map((rol) => rol.id);
+        const token = this.jwtService.sign({
+            id: user.id,
+            name: user.name,
+            roles: rolesIds,
+        });
+        const data = { user, token: 'Bearer ' + token } as any;
+        delete data.user.password;
+        return data;
     }
 
     // 🔄 Resetear contraseña con token
