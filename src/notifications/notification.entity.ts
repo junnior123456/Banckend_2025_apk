@@ -30,6 +30,16 @@ export enum NotificationType {
   VACCINE_REMINDER = 'vaccine_reminder', // Recordatorio de vacuna próxima o vencida
   PET_TRANSFERRED = 'pet_transferred', // El expediente pasó a un nuevo dueño
 
+  // Chat entre usuarios
+  NEW_MESSAGE = 'new_message', // Mensaje nuevo en una conversación
+
+  // Citas con veterinarios
+  APPOINTMENT_REQUEST = 'appointment_request', // El cliente pidió una cita
+  APPOINTMENT_CONFIRMED = 'appointment_confirmed',
+  APPOINTMENT_REJECTED = 'appointment_rejected',
+  APPOINTMENT_CANCELLED = 'appointment_cancelled',
+  APPOINTMENT_COMPLETED = 'appointment_completed',
+
   // Notificaciones del sistema
   WELCOME = 'welcome', // Nueva: bienvenida al registrarse
   SYSTEM_MESSAGE = 'system_message'

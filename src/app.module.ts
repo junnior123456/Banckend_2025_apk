@@ -26,6 +26,7 @@ import { AiModule } from './ai/ai.module'; // 🤖 Módulo de IA con Google Gemi
 import { VeterinariasModule } from './veterinarias/veterinarias.module';
 import { VetRequestsModule } from './vet-requests/vet-requests.module';
 import { PawmatchModule } from './pawmatch/pawmatch.module'; // 🐶 Árbol de decisión adoptante↔perro
+import { ChatModule } from './chat/chat.module'; // 💬 Chat entre usuarios
 
 // === Entidades PawFinder ===
 import { User } from './users/user.entity';
@@ -49,6 +50,8 @@ import { Report } from './reports/report.entity';
 import { Donation } from './donations/donation.entity';
 import { Veterinaria } from './veterinarias/veterinaria.entity';
 import { VetRequest } from './vet-requests/vet-request.entity';
+import { Conversation } from './chat/entities/conversation.entity';
+import { Message } from './chat/entities/message.entity';
 
 @Module({
   imports: [
@@ -97,6 +100,8 @@ import { VetRequest } from './vet-requests/vet-request.entity';
               Donation,
               Veterinaria,
               VetRequest,
+              Conversation,
+              Message,
               PetVaccination,
               PetWeight,
               PetAllergy,
@@ -147,6 +152,8 @@ import { VetRequest } from './vet-requests/vet-request.entity';
               Donation,
               Veterinaria,
               VetRequest,
+              Conversation,
+              Message,
               PetVaccination,
               PetWeight,
               PetAllergy,
@@ -178,6 +185,7 @@ import { VetRequest } from './vet-requests/vet-request.entity';
     VeterinariasModule,
     VetRequestsModule,
     PawmatchModule, // 🐶 Compatibilidad adoptante↔perro (árbol de decisión)
+    ChatModule, // 💬 Chat entre usuarios (adopción y consultas vet)
   ],
   controllers: [AppController],
   providers: [
