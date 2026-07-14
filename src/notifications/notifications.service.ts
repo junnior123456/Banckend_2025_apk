@@ -1,11 +1,12 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan, MoreThanOrEqual } from 'typeorm';
+import { DataSource, Repository, LessThan, MoreThanOrEqual } from 'typeorm';
 import { Notification, NotificationType } from './notification.entity';
 import { User } from '../users/user.entity';
 import { Pet } from '../pets/pet.entity';
 import { AdoptionRequest } from '../adoption/adoption-request.entity';
 import { PushNotificationService } from './push-notification.service';
+import { ejecutarComoSistema } from '../common/rls/rls.context';
 
 @Injectable()
 export class NotificationsService {
@@ -19,7 +20,25 @@ export class NotificationsService {
     @InjectRepository(AdoptionRequest)
     private adoptionRequestRepository: Repository<AdoptionRequest>,
     private pushNotificationService: PushNotificationService,
+    private readonly dataSource: DataSource,
   ) {}
+
+  /**
+   * Guarda notificaciones en CONTEXTO DE SISTEMA.
+   *
+   * Las notificaciones se crean PARA OTROS usuarios (te comentan, te piden en
+   * adopción, difusión comunitaria...). El INSERT en sí lo permite la política
+   * (`WITH CHECK true`), pero TypeORM añade `RETURNING`, y Postgres aplica la
+   * política de SELECT a la fila devuelta: como es de OTRO usuario, la relectura
+   * falla (42501) y **aborta toda la transacción de la petición**. Ejecutarlo
+   * como sistema (en su propia transacción) hace que `app_is_system()` satisfaga
+   * esa relectura y no contamina la transacción de la petición.
+   */
+  private _saveSys(entities: any): Promise<any> {
+    return ejecutarComoSistema(this.dataSource, () =>
+      this.notificationRepository.save(entities),
+    );
+  }
 
   // Obtener notificaciones del usuario con paginación
   async getNotifications(
@@ -139,7 +158,7 @@ export class NotificationsService {
       fromUserId,
     });
 
-    const savedNotification = await this.notificationRepository.save(notification);
+    const savedNotification = await this._saveSys(notification);
 
     // Enviar push notification si el usuario tiene token
     await this.pushNotificationService.sendToUser(userId, {
@@ -441,7 +460,7 @@ export class NotificationsService {
         });
 
       if (notifications.length > 0) {
-        await this.notificationRepository.save(notifications);
+        await this._saveSys(notifications);
         console.log(`✅ Notificaciones enviadas para mascota en riesgo: ${pet.name}`);
       }
     } catch (error) {
@@ -479,7 +498,7 @@ export class NotificationsService {
         });
 
       if (notifications.length > 0) {
-        await this.notificationRepository.save(notifications);
+        await this._saveSys(notifications);
         console.log(`✅ Notificaciones enviadas para nueva donación: S/ ${donation.amount}`);
       }
     } catch (error) {
@@ -490,7 +509,11 @@ export class NotificationsService {
   // Eliminar notificaciones asociadas a una mascota
   async deleteNotificationsByPetId(petId: number): Promise<void> {
     try {
-      await this.notificationRepository.delete({ petId });
+      // Como sistema: al borrar una mascota hay que limpiar las notificaciones
+      // de TODOS los usuarios sobre ella, no solo las del dueño que la borra.
+      await ejecutarComoSistema(this.dataSource, () =>
+        this.notificationRepository.delete({ petId }),
+      );
       console.log(`✅ Notificaciones eliminadas para mascota ID: ${petId}`);
     } catch (error) {
       console.error('Error eliminando notificaciones de mascota:', error);
@@ -532,7 +555,7 @@ export class NotificationsService {
         });
 
       if (notifications.length > 0) {
-        await this.notificationRepository.save(notifications);
+        await this._saveSys(notifications);
         console.log(`✅ Notificaciones comunitarias enviadas: Nueva mascota ${pet.name}`);
       }
     } catch (error) {
@@ -582,7 +605,7 @@ export class NotificationsService {
         });
 
       if (notifications.length > 0) {
-        await this.notificationRepository.save(notifications);
+        await this._saveSys(notifications);
         console.log(`✅ Notificaciones comunitarias enviadas: Adopción de ${pet.name} (${adoptionsThisMonth + 1} este mes)`);
       }
     } catch (error) {
@@ -621,7 +644,7 @@ export class NotificationsService {
         });
 
       if (notifications.length > 0) {
-        await this.notificationRepository.save(notifications);
+        await this._saveSys(notifications);
         console.log(`✅ Notificaciones comunitarias enviadas: Mascota rescatada ${pet.name}`);
       }
     } catch (error) {
