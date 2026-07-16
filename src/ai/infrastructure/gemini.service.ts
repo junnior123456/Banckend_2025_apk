@@ -4,7 +4,7 @@
  * Antes usaba Google Gemini; migrado para NO depender de la API de Gemini.
  * Este archivo es el ÚNICO punto de cambio de proveedor: para auto-hospedar
  * (Ollama/OpenAI-compatible) en el futuro basta cambiar endpoint/model/token.
- * Contexto: App de perros (adopción / perdidos) en Tarapoto, San Martín, Perú.
+ * Contexto: App de perros y gatos (adopción / perdidos) en Tarapoto, San Martín, Perú.
  */
 import { Injectable, Logger } from '@nestjs/common';
 import {
@@ -32,7 +32,7 @@ export class GeminiService implements IAiService {
   // Prompt base con contexto de Tarapoto para todas las consultas
   private readonly BASE_CONTEXT = `
     Eres PawBot, el asistente inteligente de PawFinder, una aplicación de adopción
-    de perros en Tarapoto, San Martín, Perú.
+    de perros y gatos en Tarapoto, San Martín, Perú.
 
     Contexto importante sobre Tarapoto:
     - Ciudad en la selva alta peruana, clima tropical cálido (25-35°C)
@@ -43,7 +43,23 @@ export class GeminiService implements IAiService {
     - Veterinarias disponibles en la ciudad
 
     Siempre responde en español, de forma amigable, clara y práctica.
-    Enfócate SOLO en perros (canes).
+
+    ESPECIES: la app trabaja con PERROS y GATOS. Domina ambos por igual y NUNCA
+    esquives una consulta por ser de gato. Ajusta SIEMPRE el consejo a la especie
+    de la que te hablan: sus cuidados, su alimentación y sus riesgos son
+    distintos, y dar consejo de perro a un dueño de gato es un error grave.
+    Ejemplos de diferencias que debes respetar:
+    - El gato es carnívoro estricto: necesita taurina; la comida de perro le hace daño.
+    - Nunca recomiendes a un gato paracetamol, ibuprofeno, ajo, cebolla ni aceites
+      esenciales (tea tree, eucalipto): son tóxicos para él. Tampoco antiparasitarios
+      de perro con permetrina: matan gatos.
+    - El gato no necesita paseos; necesita arenero limpio, rascador y altura.
+    - Sus vacunas son otras (trivalente felina, leucemia felina), no las del perro.
+    Si no sabes de qué especie te hablan y la respuesta cambiaría según eso,
+    PREGUNTA antes de responder.
+    Si te preguntan por otra especie (aves, conejos, roedores), di con honestidad
+    que PawFinder solo cubre perros y gatos y sugiere acudir a un veterinario.
+
     Considera el clima tropical de Tarapoto en tus recomendaciones.
   `;
 
@@ -162,18 +178,20 @@ export class GeminiService implements IAiService {
   async trackDogCare(userId: number, question: string, dogInfo?: DogCareContext): Promise<string> {
     const dogContext = dogInfo
       ? `
-        Información del perro:
+        Información de la mascota:
         - Nombre: ${dogInfo.name || 'No especificado'}
         - Raza: ${dogInfo.breed || 'No especificada'}
         - Edad: ${dogInfo.age ? `${dogInfo.age} meses` : 'No especificada'}
         - Peso: ${dogInfo.weight ? `${dogInfo.weight} kg` : 'No especificado'}
       `
-      : 'No se proporcionó información específica del perro.';
+      : 'No se proporcionó información específica de la mascota.';
 
     const prompt = `
       ${this.BASE_CONTEXT}
 
-      TAREA: Ayudar con el seguimiento y cuidado del perro adoptado.
+      TAREA: Ayudar con el seguimiento y cuidado de la mascota adoptada (perro o gato).
+      Deduce la especie por la raza o por lo que cuente el dueño; si no queda clara
+      y el consejo cambiaría según la especie, pregúntasela.
 
       ${dogContext}
 
@@ -238,11 +256,16 @@ export class GeminiService implements IAiService {
     const system = `
       ${this.BASE_CONTEXT}
 
-      TAREA: Responder consultas generales sobre perros.
+      TAREA: Orientar al usuario en cualquier consulta sobre su perro o su gato
+      (cuidados, salud, comportamiento, alimentación, adopción, mascota perdida).
 
       Estás en medio de una conversación: NO vuelvas a saludar ni a presentarte si
       ya hay mensajes previos. Continúa el hilo con naturalidad.
-      Si la pregunta no es sobre perros, redirige amablemente al tema de mascotas.
+      Responde a lo que te preguntan de verdad: nada de respuestas evasivas ni de
+      remitir al veterinario por todo. Deriva al veterinario cuando de verdad haga
+      falta (síntomas serios, urgencias, diagnóstico o medicación).
+      Si la consulta no tiene relación con mascotas, dilo con amabilidad y ofrécete
+      a ayudar con su perro o su gato.
     `;
     try {
       return await this.callModel([
@@ -340,7 +363,7 @@ export class GeminiService implements IAiService {
   //  FEATURES DE VISIÓN (nuevas)
   // ============================================================
 
-  /** Clasifica/describe un perro a partir de su foto (raza, color, tamaño, señas). */
+  /** Clasifica/describe un perro o un gato a partir de su foto (raza, color, tamaño, señas). */
   async classifyDogPhoto(imageUrl: string): Promise<DogPhotoAnalysis> {
     try {
       const dataUrl = await this.toDataUrl(imageUrl);
@@ -348,14 +371,18 @@ export class GeminiService implements IAiService {
         {
           type: 'text',
           text:
-            'Eres un veterinario experto. Analiza la foto del perro y responde SOLO ' +
+            'Eres un veterinario experto. La foto es de un PERRO o de un GATO. ' +
+            'Analízala y responde SOLO ' +
             'con un JSON válido (sin texto extra) con estas claves exactas: ' +
-            'raza (string, la más probable), color (string), ' +
+            'raza (string, la más probable; para un gato, la raza felina, y si es ' +
+            'mestizo indícalo p.ej. "gato criollo atigrado"), color (string), ' +
             'tamano (string: "pequeño"|"mediano"|"grande"), ' +
             'edad_aproximada (string), ' +
             'senas_particulares (string con marcas/rasgos distintivos), ' +
             'confianza (number 0-100). ' +
-            'Si la imagen NO es un perro, devuelve raza:"no es un perro" y confianza:0.',
+            'Empieza el campo raza con la especie si aporta claridad. ' +
+            'Solo si la imagen NO es un perro ni un gato, devuelve ' +
+            'raza:"no es un perro ni un gato" y confianza:0.',
         },
         { type: 'image_url', image_url: { url: dataUrl } },
       ];
@@ -367,8 +394,8 @@ export class GeminiService implements IAiService {
     }
   }
 
-  /** Compara la foto de un perro perdido contra varios candidatos encontrados
-   *  y devuelve un ranking de similitud. Máximo 6 candidatos por llamada. */
+  /** Compara la foto de una mascota perdida (perro o gato) contra varios candidatos
+   *  encontrados y devuelve un ranking de similitud. Máximo 6 candidatos por llamada. */
   async matchPets(
     lostImageUrl: string,
     candidates: PetMatchCandidate[],
@@ -386,10 +413,12 @@ export class GeminiService implements IAiService {
       {
         type: 'text',
         text:
-          `Eres un experto en identificación canina. La IMAGEN 0 es un perro PERDIDO. ` +
-          `A continuación hay ${limited.length} perros ENCONTRADOS. ` +
-          `Para cada uno da un puntaje de similitud (0-100) de que sea el MISMO perro ` +
-          `y una razón corta. Considera raza, color, tamaño, patrones del pelaje y señas. ` +
+          `Eres un experto en identificación de perros y gatos. La IMAGEN 0 es una ` +
+          `mascota PERDIDA. A continuación hay ${limited.length} mascotas ENCONTRADAS. ` +
+          `Para cada una da un puntaje de similitud (0-100) de que sea el MISMO animal ` +
+          `y una razón corta. Considera especie, raza, color, tamaño, patrones del ` +
+          `pelaje y señas particulares. ` +
+          `Si el candidato es de otra especie que la mascota perdida, el puntaje es 0. ` +
           `Responde SOLO JSON con esta forma exacta: ` +
           `{"resultados":[{"index":0,"score":85,"razon":"..."}]} ` +
           `donde index corresponde al número de candidato indicado.`,
