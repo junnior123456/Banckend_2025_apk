@@ -17,7 +17,11 @@ import {
   HttpStatus,
   HttpException
 } from '@nestjs/common';
-import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FileInterceptor,
+  FilesInterceptor,
+} from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt/jwt.guard';
 import { PetsService } from './pets.service';
 import { CreatePetDto } from './dto/create-pet.dto';
@@ -269,6 +273,70 @@ export class PetsController {
         HttpStatus.BAD_REQUEST,
       );
     }
+  }
+
+  // 🎬 POST /api/pets/:id/video - Agregar un video corto a la publicación
+  @Post(':id/video')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'video', maxCount: 1 },
+        { name: 'thumbnail', maxCount: 1 },
+      ],
+      {
+        // 50 MB: tiene que ir acompasado con client_max_body_size de nginx (60M)
+        limits: { fileSize: 50 * 1024 * 1024 },
+        fileFilter: (req, file, callback) => {
+          const esVideo = file.mimetype.startsWith('video/');
+          const esImagen = file.mimetype.startsWith('image/');
+          if (file.fieldname === 'video' && !esVideo) {
+            return callback(
+              new HttpException(
+                `El campo video tiene que ser un video. Recibido: ${file.mimetype}`,
+                HttpStatus.BAD_REQUEST,
+              ),
+              false,
+            );
+          }
+          if (file.fieldname === 'thumbnail' && !esImagen) {
+            return callback(
+              new HttpException(
+                'La portada tiene que ser una imagen',
+                HttpStatus.BAD_REQUEST,
+              ),
+              false,
+            );
+          }
+          callback(null, true);
+        },
+      },
+    ),
+  )
+  async addVideo(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFiles()
+    files: {
+      video?: Express.Multer.File[];
+      thumbnail?: Express.Multer.File[];
+    },
+    @Body('durationSec') durationSec: string,
+    @Request() req: any,
+  ) {
+    const segundos = Number(durationSec);
+    const result = await this.petsService.addVideo(
+      id,
+      files?.video?.[0],
+      files?.thumbnail?.[0],
+      Number.isFinite(segundos) ? segundos : undefined,
+      req.user.userId,
+    );
+
+    return {
+      ok: true,
+      message: 'Video agregado exitosamente',
+      data: result,
+    };
   }
 
   // 🗑️ DELETE /api/pets/:petId/images/:imageId - Eliminar imagen específica

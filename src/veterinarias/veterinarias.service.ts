@@ -135,4 +135,43 @@ export class VeterinariasService {
       })
       .join('\n');
   }
+
+  /**
+   * Veterinarias cercanas a un punto, de la mas cercana a la mas lejana.
+   * La distancia se calcula con la formula de Haversine en el propio SQL, asi
+   * que NO hace falta PostGIS. El LEAST/GREATEST recorta el coseno a [-1, 1]:
+   * sin eso, un redondeo en coma flotante puede sacar 1.0000000002 y acos()
+   * revienta con NaN justo cuando la veterinaria esta encima del usuario.
+   */
+  async listNearby(lat: number, lng: number, radiusKm = 10, limit = 20) {
+    const filas = await this.repo.query(
+      `
+      SELECT * FROM (
+        SELECT v.*,
+               6371 * acos(
+                 LEAST(1, GREATEST(-1,
+                   cos(radians($1)) * cos(radians(v.latitude)) *
+                   cos(radians(v.longitude) - radians($2)) +
+                   sin(radians($1)) * sin(radians(v.latitude))
+                 ))
+               ) AS "distanceKm"
+        FROM veterinaria v
+        WHERE v."isVerified" = true
+          AND v."isActive" = true
+          AND v.latitude IS NOT NULL
+          AND v.longitude IS NOT NULL
+      ) AS con_distancia
+      WHERE "distanceKm" <= $3
+      ORDER BY "distanceKm" ASC
+      LIMIT $4
+      `,
+      [lat, lng, radiusKm, limit],
+    );
+
+    // Devolver la distancia con 2 decimales: "1.24 km" se lee mejor en la app.
+    return filas.map((fila: any) => ({
+      ...fila,
+      distanceKm: Math.round(Number(fila.distanceKm) * 100) / 100,
+    }));
+  }
 }

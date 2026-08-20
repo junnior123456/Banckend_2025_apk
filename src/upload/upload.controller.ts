@@ -81,4 +81,53 @@ export class UploadController {
       throw new BadRequestException(`Upload failed: ${error.message}`);
     }
   }
+
+  /**
+   * POST /api/upload/video
+   * Sube un video corto para las publicaciones (estilo TikTok).
+   * El archivo se guarda TAL CUAL, sin recomprimir: el servidor tiene 2 CPU y
+   * transcodificar lo tumbaria. El limite de 50 MB tiene que ir acompasado con
+   * el client_max_body_size de nginx (hoy 60M), o nginx corta antes que Nest.
+   */
+  @Post('video')
+  @UseInterceptors(
+    FileInterceptor('video', {
+      limits: {
+        fileSize: 50 * 1024 * 1024, // 50 MB (~30 s grabados con el movil)
+      },
+      fileFilter: (req, file, callback) => {
+        const esVideo =
+          file.mimetype.startsWith('video/') ||
+          /\.(mp4|mov|webm|3gp|m4v)$/i.test(file.originalname);
+
+        if (!esVideo) {
+          return callback(
+            new BadRequestException(
+              `Solo se permiten videos. Recibido: ${file.mimetype}`,
+            ),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+    }),
+  )
+  async uploadVideo(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    const mb = (file.size / 1024 / 1024).toFixed(1);
+    this.logger.log(`📹 [UPLOAD] Video ${file.originalname} (${mb} MB)`);
+
+    const videoUrl = await this.uploadService.uploadVideo(file);
+
+    return {
+      success: true,
+      message: 'Video uploaded successfully',
+      videoUrl,
+      originalName: file.originalname,
+      size: file.size,
+    };
+  }
 }

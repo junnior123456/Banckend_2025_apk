@@ -55,4 +55,18 @@ export class UploadService {
       return false;
     }
   }
+
+  /**
+   * Sube un video corto al disco del servidor y devuelve su URL publica.
+   * A diferencia de uploadImage, aqui NO hay fallback a una URL de relleno:
+   * si la subida falla el usuario tiene que enterarse, no quedarse con un
+   * video roto que parecia haberse guardado.
+   */
+  async uploadVideo(file: Express.Multer.File): Promise<string> {
+    // storage() ya elige la carpeta segun el tipo (video- -> videos/) y le pone
+    // su propia marca de tiempo delante, asi que aqui basta el nombre original.
+    const videoUrl = await storage(file, file.originalname);
+    this.logger.log(`✅ Video subido: ${videoUrl}`);
+    return videoUrl;
+  }
 }

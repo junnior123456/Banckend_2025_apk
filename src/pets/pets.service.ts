@@ -452,6 +452,66 @@ export class PetsService {
     }
   }
 
+  /**
+   * Agrega UN video corto a la publicacion de una mascota.
+   * El video se guarda tal cual, sin recomprimir, y se anota en la MISMA tabla
+   * que las fotos (pet_images) con mediaType 'video', para que el feed pueda
+   * recorrer fotos y videos en una sola lista.
+   */
+  async addVideo(
+    petId: number,
+    video: Express.Multer.File,
+    thumbnail: Express.Multer.File | undefined,
+    durationSec: number | undefined,
+    userId: number,
+  ): Promise<PetImage> {
+    const MAX_SEGUNDOS = 30; // tope acordado para los clips
+
+    if (!video) {
+      throw new HttpException(
+        'No se recibio ningun video',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const pet = await this.petRepository.findOne({ where: { id: petId } });
+    if (!pet) {
+      throw new NotFoundException('Mascota no encontrada');
+    }
+    if (pet.userId !== userId) {
+      throw new ForbiddenException(
+        'No tienes permiso para modificar esta mascota',
+      );
+    }
+
+    if (durationSec !== undefined && durationSec > MAX_SEGUNDOS) {
+      throw new HttpException(
+        `El video no puede durar mas de ${MAX_SEGUNDOS} segundos`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // storage() manda los videos a /uploads/videos/ y las imagenes a /uploads/images/
+    const videoUrl = await uploadToFirebase(video, 'pets/');
+    const thumbnailUrl = thumbnail
+      ? await uploadToFirebase(thumbnail, 'pets/')
+      : null;
+
+    const existentes = await this.petImageRepository.count({ where: { petId } });
+    const petVideo = this.petImageRepository.create({
+      imageUrl: videoUrl,
+      mediaType: 'video',
+      thumbnailUrl,
+      durationSec: durationSec ?? null,
+      // La portada de la ficha sigue siendo una foto, nunca el video.
+      isPrimary: false,
+      order: existentes + 1,
+      petId,
+    });
+
+    return this.petImageRepository.save(petVideo);
+  }
+
   // Eliminar imagen
   async removeImage(petId: number, imageId: number, userId: number): Promise<void> {
     try {
