@@ -8,9 +8,19 @@ import {
   Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt/jwt.guard';
 import { UploadService } from './upload.service';
 
+/**
+ * Subida de ficheros al servidor.
+ *
+ * 🔒 TODO el controlador exige sesión. Sin esto, cualquiera en internet podía
+ * subir ficheros anónimamente y llenar el disco del servidor: comprobado en la
+ * auditoría del 20-ago-2026, devolvía 201 y dejaba el fichero servido por nginx.
+ */
 @Controller('upload')
+@UseGuards(JwtAuthGuard)
 export class UploadController {
   private readonly logger = new Logger(UploadController.name);
 

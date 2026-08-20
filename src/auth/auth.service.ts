@@ -84,20 +84,55 @@ export class AuthService {
    async login(loginData: LoginAuthDto) {
 
     const { email, password } = loginData;
-    const userFound = await this.userRepository.findOne({ 
+
+    // 🔒 Un solo mensaje para "no existe" y "contraseña mal". Antes respondía
+    // 404 "El email no existe" frente a 403 "La contraseña es incorrecta", lo
+    // que permitía averiguar qué correos están registrados probándolos uno a uno.
+    const CREDENCIALES_MAL = 'Correo o contraseña incorrectos';
+
+    const userFound = await this.userRepository.findOne({
         where: { email: email },
         relations: ['roles']
      })
     if (!userFound) {
-        throw new HttpException('El email no existe', HttpStatus.NOT_FOUND);
+        throw new HttpException(CREDENCIALES_MAL, HttpStatus.UNAUTHORIZED);
     }
-    
+
+    // 🔒 Bloqueo temporal por intentos fallidos. nginx ya limita a 1 intento
+    // por segundo, pero eso deja ~86.000 pruebas al día contra una contraseña
+    // corta: el freno por IP no basta, hace falta uno por cuenta.
+    if (userFound.lockedUntil && userFound.lockedUntil.getTime() > Date.now()) {
+        const minutos = Math.ceil(
+            (userFound.lockedUntil.getTime() - Date.now()) / 60000,
+        );
+        throw new HttpException(
+            `Demasiados intentos fallidos. Vuelve a intentarlo en ${minutos} min.`,
+            HttpStatus.TOO_MANY_REQUESTS,
+        );
+    }
+
     const isPasswordValid = await compare(password, userFound.password);
     if (!isPasswordValid) {
-        console.log('PASSWORD INCORRECTO');
-        
-        // 403 FORBITTEN access denied
-        throw new HttpException('La contraseña es incorrecta', HttpStatus.FORBIDDEN);
+        const MAX_INTENTOS = 5;
+        const MINUTOS_BLOQUEO = 15;
+
+        userFound.failedLoginAttempts = (userFound.failedLoginAttempts ?? 0) + 1;
+        if (userFound.failedLoginAttempts >= MAX_INTENTOS) {
+            userFound.lockedUntil = new Date(
+                Date.now() + MINUTOS_BLOQUEO * 60 * 1000,
+            );
+            userFound.failedLoginAttempts = 0;
+        }
+        await this.userRepository.save(userFound);
+
+        throw new HttpException(CREDENCIALES_MAL, HttpStatus.UNAUTHORIZED);
+    }
+
+    // Entró bien: se limpia el contador para no arrastrar fallos viejos.
+    if (userFound.failedLoginAttempts || userFound.lockedUntil) {
+        userFound.failedLoginAttempts = 0;
+        userFound.lockedUntil = null;
+        await this.userRepository.save(userFound);
     }
 
     const rolesIds = userFound.roles.map(rol => rol.id); //['CLIENT', 'ADMIN']

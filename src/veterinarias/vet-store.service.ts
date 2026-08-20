@@ -220,7 +220,23 @@ export class VetStoreService {
   //  Horas ocupadas fuera de la app
   // ============================================================
 
-  async listarOcupados(veterinariaId: number, desde: Date, hasta: Date) {
+  /**
+   * Horas ocupadas de la clínica.
+   *
+   * 🔒 Solo su dueño o un admin. Estaba con sesión pero SIN comprobar de quién
+   * era la clínica, así que cualquier usuario registrado podía leer la agenda
+   * interna de cualquier veterinaria, con los títulos de sus intervenciones
+   * (auditoría del 20-ago-2026). Los clientes ya tienen `/availability`, que
+   * dice qué horas quedan libres sin revelar qué hay en las ocupadas.
+   */
+  async listarOcupados(
+    veterinariaId: number,
+    desde: Date,
+    hasta: Date,
+    userId: number,
+    roles: string[],
+  ) {
+    await this.exigirDueno(veterinariaId, userId, roles);
     return this.ocupados.find({
       where: { veterinariaId, startsAt: Between(desde, hasta) },
       order: { startsAt: 'ASC' },

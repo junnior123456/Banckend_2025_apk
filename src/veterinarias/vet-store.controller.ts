@@ -162,6 +162,7 @@ export class VetStoreController {
     @Param('id', ParseIntPipe) id: number,
     @Query('from') from: string,
     @Query('to') to: string,
+    @Req() req: any,
   ) {
     const desde = from ? new Date(from) : new Date();
     const hasta = to
@@ -170,7 +171,13 @@ export class VetStoreController {
     if (isNaN(desde.getTime()) || isNaN(hasta.getTime())) {
       throw new BadRequestException('Fechas inválidas en from/to');
     }
-    return this.service.listarOcupados(id, desde, hasta);
+    return this.service.listarOcupados(
+      id,
+      desde,
+      hasta,
+      req.user.userId,
+      req.user.roles,
+    );
   }
 
   /**

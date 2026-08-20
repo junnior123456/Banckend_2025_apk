@@ -20,6 +20,28 @@ export class VeterinariasService {
     private readonly repo: Repository<Veterinaria>,
   ) {}
 
+  /**
+   * Quita de la ficha los datos de la agenda externa antes de devolverla a
+   * quien no es su dueño.
+   *
+   * 🔒 `externalAgendaKey` es la credencial con la que el sistema del
+   * veterinario bloquea horas. Salía en el directorio PÚBLICO, así que
+   * cualquiera podía leerla y dejar la agenda de una clínica ocupada entera
+   * (comprobado en la auditoría del 20-ago-2026). `externalAgendaUrl` tampoco
+   * debe salir: los calendarios privados llevan un token secreto en la propia
+   * URL.
+   */
+  private sinSecretos<T extends Partial<Veterinaria>>(vet: T): T {
+    const copia: any = { ...vet };
+    delete copia.externalAgendaKey;
+    delete copia.externalAgendaUrl;
+    return copia;
+  }
+
+  private ocultarSecretos<T extends Partial<Veterinaria>>(lista: T[]): T[] {
+    return lista.map((v) => this.sinSecretos(v));
+  }
+
   private isAdmin(roles: string[]) {
     return (roles || []).includes(ADMIN);
   }
@@ -29,10 +51,11 @@ export class VeterinariasService {
 
   /** Directorio público: solo verificadas y activas. */
   async listPublic() {
-    return this.repo.find({
+    const lista = await this.repo.find({
       where: { isVerified: true, isActive: true },
       order: { name: 'ASC' },
     });
+    return this.ocultarSecretos(lista);
   }
 
   async findPublic(id: number) {
@@ -40,7 +63,7 @@ export class VeterinariasService {
       where: { id, isVerified: true, isActive: true },
     });
     if (!vet) throw new NotFoundException('Veterinaria no encontrada');
-    return vet;
+    return this.sinSecretos(vet);
   }
 
   /** Todas, para el panel de administración. */
@@ -169,9 +192,14 @@ export class VeterinariasService {
     );
 
     // Devolver la distancia con 2 decimales: "1.24 km" se lee mejor en la app.
-    return filas.map((fila: any) => ({
-      ...fila,
-      distanceKm: Math.round(Number(fila.distanceKm) * 100) / 100,
-    }));
+    // 🔒 Fuera los datos de la agenda externa: esto es público y el SELECT v.*
+    // los arrastraba. Con esa clave se puede bloquear la agenda de otro.
+    return filas.map((fila: any) => {
+      const { externalAgendaKey, externalAgendaUrl, ...publica } = fila;
+      return {
+        ...publica,
+        distanceKm: Math.round(Number(fila.distanceKm) * 100) / 100,
+      };
+    });
   }
 }

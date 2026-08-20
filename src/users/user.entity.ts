@@ -119,4 +119,18 @@ export class User {
     const saltRounds = Number(process.env.HASH_SALT) || 10; // valor por defecto 10
     this.password = await hash(this.password, saltRounds);
   }
+
+
+  /** Intentos de acceso fallidos seguidos. Se pone a cero al entrar bien. */
+
+  @Column({ type: 'int', default: 0 })
+
+  failedLoginAttempts: number;
+
+
+  /** Hasta cuando esta bloqueada la cuenta por intentos fallidos. */
+
+  @Column({ type: 'timestamp', nullable: true })
+
+  lockedUntil: Date | null;
 }
