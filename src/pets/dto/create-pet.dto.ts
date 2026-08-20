@@ -1,4 +1,5 @@
-import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min, Max } from 'class-validator';
+import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsNumber, IsString, MaxLength, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreatePetDto {
   @IsNotEmpty()
@@ -26,6 +27,24 @@ export class CreatePetDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  // Dónde se encuentra el animal, para que la gente sepa dónde buscarlo.
+  // Llega del GPS del teléfono al publicar. Las columnas ya existían en la
+  // entidad, pero el DTO no las dejaba pasar y siempre quedaban vacías.
+  // El @Type es por el multipart: ahí los números llegan como texto.
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  latitude?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  longitude?: number;
 
   @IsOptional()
   @IsString()
