@@ -1,7 +1,7 @@
 /**
  * INFRASTRUCTURE LAYER - Servicio de IA de PawFinder
- * Proveedor ACTUAL: GitHub Models (endpoint compatible con OpenAI).
- * Antes usaba Google Gemini; migrado para NO depender de la API de Gemini.
+ * Proveedor ACTUAL: Google AI Studio (Gemini), capa compatible con OpenAI.
+ * Antes usaba GitHub Models, RETIRADO por GitHub (HTTP 410 retirement brownout).
  * Este archivo es el ÚNICO punto de cambio de proveedor: para auto-hospedar
  * (Ollama/OpenAI-compatible) en el futuro basta cambiar endpoint/model/token.
  * Contexto: App de perros y gatos (adopción / perdidos) en Tarapoto, San Martín, Perú.
@@ -23,11 +23,12 @@ import { VeterinariasService } from '../../veterinarias/veterinarias.service';
 export class GeminiService implements IAiService {
   private readonly logger = new Logger(GeminiService.name);
 
-  // Configuración del proveedor (GitHub Models, compatible OpenAI)
+  // Configuración del proveedor (Google AI Studio / Gemini, compatible OpenAI)
   private readonly endpoint =
-    process.env.GITHUB_MODELS_ENDPOINT || 'https://models.github.ai/inference';
-  private readonly token = process.env.GITHUB_TOKEN || '';
-  private readonly model = process.env.GITHUB_MODEL || 'openai/gpt-4o-mini';
+    process.env.AI_ENDPOINT ||
+    'https://generativelanguage.googleapis.com/v1beta/openai';
+  private readonly token = process.env.GEMINI_API_KEY || '';
+  private readonly model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
 
   // Prompt base con contexto de Tarapoto para todas las consultas
   private readonly BASE_CONTEXT = `
@@ -65,7 +66,7 @@ export class GeminiService implements IAiService {
 
   constructor(private readonly veterinarias: VeterinariasService) {
     if (!this.token) {
-      this.logger.warn('⚠️ GITHUB_TOKEN no configurado - IA no disponible');
+      this.logger.warn('⚠️ GEMINI_API_KEY no configurado - IA no disponible');
     }
   }
 
@@ -79,13 +80,13 @@ export class GeminiService implements IAiService {
     jsonMode = false,
   ): Promise<string> {
     if (!this.token) {
-      throw new Error('API_KEY missing - GITHUB_TOKEN no configurado');
+      throw new Error('API_KEY missing - GEMINI_API_KEY no configurado');
     }
     const body: any = {
       model: this.model,
       messages,
       max_tokens: maxTokens,
-      temperature,
+      temperature, reasoning_effort: 'minimal', // sin esto Gemini 3 gasta el presupuesto de tokens razonando
     };
     if (jsonMode) body.response_format = { type: 'json_object' };
 
@@ -102,7 +103,7 @@ export class GeminiService implements IAiService {
     );
     if (!res.ok) {
       const txt = await res.text();
-      throw new Error(`GitHub Models HTTP ${res.status}: ${txt.slice(0, 300)}`);
+      throw new Error(`IA (Gemini) HTTP ${res.status}: ${txt.slice(0, 300)}`);
     }
     const data: any = await res.json();
     return data?.choices?.[0]?.message?.content ?? '';

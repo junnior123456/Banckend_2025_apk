@@ -31,8 +31,8 @@ export class AiController {
     return {
       status: 'ok',
       service: 'PawBot - Asistente IA de PawFinder',
-      provider: 'GitHub Models (OpenAI-compatible)',
-      configured: !!process.env.GITHUB_TOKEN,
+      provider: 'Google AI Studio - Gemini (OpenAI-compatible)',
+      configured: !!process.env.GEMINI_API_KEY,
       features: [
         'Recomendación de perros para adoptar',
         'Seguimiento del cuidado del perro',
