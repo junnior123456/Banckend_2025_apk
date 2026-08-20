@@ -50,6 +50,9 @@ import { Notification } from './notifications/notification.entity';
 import { Report } from './reports/report.entity';
 import { Donation } from './donations/donation.entity';
 import { Veterinaria } from './veterinarias/veterinaria.entity';
+import { VetProduct } from './veterinarias/vet-product.entity';
+import { VetWorkingHours } from './veterinarias/vet-working-hours.entity';
+import { VetBusySlot } from './veterinarias/vet-busy-slot.entity';
 import { VetRequest } from './vet-requests/vet-request.entity';
 import { Conversation } from './chat/entities/conversation.entity';
 import { Message } from './chat/entities/message.entity';
@@ -101,6 +104,9 @@ import { Appointment } from './appointments/appointment.entity';
               Report,
               Donation,
               Veterinaria,
+        VetProduct,
+        VetWorkingHours,
+        VetBusySlot,
               VetRequest,
               Conversation,
               Message,
@@ -154,6 +160,9 @@ import { Appointment } from './appointments/appointment.entity';
               Report,
               Donation,
               Veterinaria,
+        VetProduct,
+        VetWorkingHours,
+        VetBusySlot,
               VetRequest,
               Conversation,
               Message,

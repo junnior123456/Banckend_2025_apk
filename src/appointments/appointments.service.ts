@@ -11,6 +11,7 @@ import { Veterinaria } from '../veterinarias/veterinaria.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/notification.entity';
 import { ChatService } from '../chat/chat.service';
+import { VetStoreService } from '../veterinarias/vet-store.service';
 import { ConversationType } from '../chat/entities/conversation.entity';
 import {
   CreateAppointmentDto,
@@ -26,6 +27,7 @@ export class AppointmentsService {
     private readonly vetRepo: Repository<Veterinaria>,
     private readonly notifications: NotificationsService,
     private readonly chat: ChatService,
+    private readonly agenda: VetStoreService,
   ) {}
 
   /** El cliente reserva una cita con una veterinaria. */
@@ -40,6 +42,19 @@ export class AppointmentsService {
     const cuando = new Date(dto.scheduledAt);
     if (isNaN(cuando.getTime()) || cuando.getTime() < Date.now()) {
       throw new BadRequestException('La fecha de la cita debe ser futura');
+    }
+
+    // No dejar reservar encima de algo ya ocupado: ni de otra cita de la app,
+    // ni de lo que el veterinario tenga en su propio sistema.
+    // Si la clínica aún no ha puesto su horario, no se le exige nada (antes
+    // no existía esta validación y sus reservas seguirían funcionando).
+    if (await this.agenda.tieneAgendaConfigurada(vet.id)) {
+      const libre = await this.agenda.estaLibre(vet.id, cuando);
+      if (!libre) {
+        throw new BadRequestException(
+          'Ese horario ya no está disponible. Elige uno de los turnos libres.',
+        );
+      }
     }
 
     // Chat de la cita: cliente ↔ dueño de la veterinaria.

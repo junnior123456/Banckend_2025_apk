@@ -51,6 +51,23 @@ export class Veterinaria {
   @Column({ type: 'varchar', length: 500, nullable: true })
   imageUrl: string;
 
+  /** Duracion de cada turno de cita, en minutos. */
+  @Column({ type: 'int', default: 30 })
+  slotMinutes: number;
+
+  /** URL del calendario del sistema propio del veterinario (formato iCal/ICS).
+   *  De ahi se traen las horas que ya tiene ocupadas fuera de la app. */
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  externalAgendaUrl: string | null;
+
+  /** Clave para que el sistema del veterinario EMPUJE sus horas ocupadas,
+   *  cuando no puede publicar un iCal. Se manda en la cabecera X-Agenda-Key. */
+  @Column({ type: 'varchar', length: 80, nullable: true })
+  externalAgendaKey: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  externalAgendaSyncedAt: Date | null;
+
   @Column({ type: 'double precision', nullable: true })
   latitude: number;
 
