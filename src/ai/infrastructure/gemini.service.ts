@@ -28,7 +28,22 @@ export class GeminiService implements IAiService {
     process.env.AI_ENDPOINT ||
     'https://generativelanguage.googleapis.com/v1beta/openai';
   private readonly token = process.env.GEMINI_API_KEY || '';
-  private readonly model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+  // Cadena de modelos: cada uno tiene su PROPIA cuota diaria en el nivel
+  // gratuito (gemini-3.6-flash son solo 20 peticiones/dia), asi que al agotarse
+  // uno se pasa al siguiente en vez de dejar la IA caida.
+  private readonly models = (
+    process.env.GEMINI_MODELS ||
+    'gemini-3.6-flash,gemini-3.7-flash,gemini-3.5-flash,gemini-3.5-flash-lite'
+  )
+    .split(',')
+    .map((m) => m.trim())
+    .filter(Boolean);
+
+  private modelIndex = 0;
+
+  private get model(): string {
+    return this.models[this.modelIndex];
+  }
 
   // Prompt base con contexto de Tarapoto para todas las consultas
   private readonly BASE_CONTEXT = `
@@ -103,6 +118,20 @@ export class GeminiService implements IAiService {
     );
     if (!res.ok) {
       const txt = await res.text();
+      // 429 = cuota diaria agotada, 503 = modelo saturado. En ambos casos el
+      // siguiente modelo de la cadena suele responder: se cambia y se reintenta.
+      const agotado = res.status === 429 || res.status === 503;
+      const quedanModelos = this.modelIndex < this.models.length - 1;
+      if (agotado) {
+        if (quedanModelos) {
+          const previo = this.model;
+          this.modelIndex++;
+          this.logger.warn(
+            `Modelo ${previo} no disponible (HTTP ${res.status}); uso ${this.model}`,
+          );
+          return this.callModel(messages, maxTokens, temperature, jsonMode);
+        }
+      }
       throw new Error(`IA (Gemini) HTTP ${res.status}: ${txt.slice(0, 300)}`);
     }
     const data: any = await res.json();
