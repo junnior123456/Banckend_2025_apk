@@ -41,6 +41,11 @@ export class VetProduct {
   @Column({ type: 'varchar', length: 500, nullable: true })
   imageUrl: string | null;
 
+  /** Vídeo corto de publicidad del producto o servicio. Lo sube el veterinario
+   *  desde su panel y lo ven los clientes en la tienda. */
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  videoUrl: string | null;
+
   /** null = no se controla stock (lo normal en los servicios). */
   @Column({ type: 'int', nullable: true })
   stock: number | null;
